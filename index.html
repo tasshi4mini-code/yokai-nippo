@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>溶解日報</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a2e00">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="溶解日報">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{
+  --bg:#f3f5f8; --card:#fff; --ink:#1d2330; --sub:#5d6778; --line:#d5dbe4;
+  --pri:#1f5fbf; --pri-ink:#fff;
+  --ok:#e5f5ea; --ok-ink:#17693a;
+  --warn:#fff3c4; --warn-ink:#7a5a00;
+  --ng:#ffdcdc; --ng-ink:#b00020;
+  --off:#e8eaee;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Meiryo","Yu Gothic UI","Hiragino Sans",sans-serif;font-size:16px}
+header.top{position:sticky;top:0;z-index:20;background:#16325c;color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+header.top h1{font-size:20px;margin:0 12px 0 0}
+header.top .sp{flex:1}
+.sync{font-size:13px;padding:6px 10px;border-radius:999px;border:1px solid #6d86ad;color:#fff;background:transparent;min-height:34px;cursor:pointer;white-space:nowrap}
+.sync.ok{background:#1f7a46;border-color:#1f7a46}.sync.wait{background:#b7791f;border-color:#b7791f}.sync.err{background:#b00020;border-color:#b00020}.sync.off{background:#5d6778;border-color:#5d6778}
+button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:10px 14px;cursor:pointer;min-height:44px}
+button.pri{background:var(--pri);color:var(--pri-ink);border-color:var(--pri);font-weight:bold}
+button.ghost{background:transparent;color:#fff;border-color:#6d86ad}
+button:active{transform:translateY(1px)}
+main{max-width:1400px;margin:0 auto;padding:16px;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+main>*{min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h2{font-size:17px;margin:0 0 12px;border-left:5px solid var(--pri);padding-left:8px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--sub)}
+input,select,textarea{font:inherit;font-size:18px;padding:8px 10px;border:1px solid #b9c2cf;border-radius:8px;background:#fff;color:var(--ink);min-height:46px;width:100%}
+textarea{min-height:70px;font-size:16px}
+input:focus,textarea:focus{outline:3px solid #9cc0f5;border-color:var(--pri)}
+.grid{display:grid;gap:12px}
+.g-head{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.spec{font-size:14px;color:var(--sub);display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px}
+.spec b{color:var(--ink)}
+.spec em{color:#c0392b;font-style:normal}
+/* slot chips */
+.chips{display:grid;grid-template-columns:repeat(12,1fr);gap:6px}
+.chip{min-height:48px;padding:4px;border-radius:8px;border:2px solid var(--line);background:#fff;font-weight:bold;font-size:15px;position:relative}
+.chip.filled{background:var(--ok);color:var(--ok-ink);border-color:#9fd3b1}
+.chip.warn{background:var(--warn);color:var(--warn-ink);border-color:#e5c95a}
+.chip.ng{background:var(--ng);color:var(--ng-ink);border-color:#f19999}
+.chip.off{background:var(--off);color:#8a93a3}
+.chip.sel{outline:4px solid var(--pri);outline-offset:1px}
+.chip.now::after{content:"現在";position:absolute;top:-8px;right:-4px;background:#e67e22;color:#fff;font-size:10px;padding:1px 4px;border-radius:4px}
+.legend{font-size:13px;color:var(--sub);margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid #aaa}
+.lg-ok::before{background:var(--ok)!important}.lg-w::before{background:var(--warn)!important}.lg-ng::before{background:var(--ng)!important}.lg-off::before{background:var(--off)!important}
+/* entry */
+.entry-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.entry-head .slot{font-size:30px;font-weight:bold;min-width:100px}
+.sec{border:1px dashed var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.sec .t{font-size:13px;font-weight:bold;color:var(--sub);margin-bottom:8px}
+.g-cond{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.g-meas{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.g-hard{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+input.ok{background:var(--ok)} input.warn{background:var(--warn)} input.ng{background:var(--ng);color:var(--ng-ink);font-weight:bold}
+.hint{font-size:12px;color:var(--sub);min-height:16px}
+.hint.ng{color:var(--ng-ink);font-weight:bold}.hint.warn{color:var(--warn-ink)}
+.judge{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.judge button.on-ok{background:#2e8b57;color:#fff;border-color:#2e8b57}
+.judge button.on-ng{background:#c62828;color:#fff;border-color:#c62828}
+.judge button.on-auto{background:#44536b;color:#fff}
+.toggle{display:flex;align-items:center;gap:8px;font-size:15px;min-height:46px;padding:0 10px;border:1px solid #b9c2cf;border-radius:8px;background:#fff;cursor:pointer;user-select:none}
+.toggle input{width:24px;height:24px;min-height:0}
+.nav{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
+/* table */
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:1100px;font-size:14px}
+th,td{border:1px solid #9aa4b3;padding:4px 6px;text-align:center;white-space:nowrap}
+th{background:#eef1f6;font-weight:bold;font-size:12px}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#f2f7ff}
+tbody tr.sel{background:#e3eeff}
+td.ok{} td.warn{background:var(--warn)} td.ng{background:var(--ng);color:var(--ng-ink);font-weight:bold}
+td.jNG{color:var(--ng-ink);font-weight:bold}
+tr.off td{color:#9aa1ad}
+/* events */
+.ev{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;display:grid;gap:10px;grid-template-columns:140px 180px 1fr 1fr auto;align-items:start}
+/* dialog */
+dialog{border:none;border-radius:12px;padding:0;max-width:640px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:18px}
+.dlg h3{margin:0 0 12px}
+.dlg .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end;margin-bottom:8px}
+.dlg .row .lbl{font-weight:bold;font-size:14px;align-self:center}
+.list-item.open{cursor:pointer}.list-item.open:hover{background:#f2f7ff}
+.badge{display:inline-block;font-size:12px;font-weight:bold;padding:2px 8px;border-radius:999px;margin-left:4px}
+.b-ok{background:var(--ok);color:var(--ok-ink)}.b-ng{background:var(--ng);color:var(--ng-ink)}.b-w{background:var(--warn);color:var(--warn-ink)}.b-g{background:var(--off);color:#5d6778}
+.list-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#16325c;color:#fff;padding:12px 20px;border-radius:10px;opacity:0;transition:.3s;pointer-events:none;z-index:99;max-width:90vw}
+#toast.show{opacity:1}
+.small{font-size:13px;color:var(--sub)}
+@media (max-width:900px){
+  header.top{padding:8px 12px;gap:6px;position:static}
+  header.top h1{font-size:17px;width:100%}
+  header.top button{padding:8px 10px;font-size:14px}
+  main{padding:12px}
+  .card{padding:12px}
+  .chips{grid-template-columns:repeat(6,1fr)}
+  .ev{grid-template-columns:1fr 1fr}
+  .ev .wide{grid-column:1/-1}
+}
+@media print{
+  header.top,.no-print,#entryCard,#slotCard{display:none!important}
+  body{background:#fff;font-size:11px}
+  .card{border:none;padding:0}
+  table{min-width:0;font-size:10px}
+  @page{size:A4 landscape;margin:8mm}
+}
+</style>
+<style>
+header.top{background:#7a2e00}
+button.ghost{border-color:#c98b5e}
+.id{font-size:12px;color:var(--sub);font-weight:normal}
+.notice{background:#fff7e6;border:1px solid #f0c36d;border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.6}
+.notice strong{color:#b00020}
+.docinfo{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;font-size:13px;color:var(--sub);margin-top:10px}
+.docinfo b{color:var(--ink);font-weight:normal}
+.target{font-size:22px;font-weight:bold;color:#c62828}
+label.sup{color:#c62828;font-weight:bold}
+label.sup input{border:2px solid #e53935;background:#fff1f1;color:#b00020;font-weight:bold}
+label.sup input::placeholder{color:#e57373;font-weight:normal}
+/* charge chips */
+.chips32{display:grid;grid-template-columns:repeat(16,1fr);gap:6px}
+.chips32 .chip{min-height:52px;font-size:16px;line-height:1.1}
+.chips32 .chip small{display:block;font-size:10px;font-weight:normal;color:var(--sub)}
+.chip.tp{box-shadow:inset 0 0 0 3px #e53935}
+.chip.melt,.no.melt{background:#ffcc80!important;color:#6d3200!important;border-color:#fb8c00!important}
+.chip.pour,.no.pour{background:#b39ddb!important;color:#311b92!important;border-color:#7e57c2!important}
+.lg-melt::before{background:#ffcc80!important}.lg-pour::before{background:#b39ddb!important}.lg-tp::before{background:#fff!important;border:2px solid #e53935!important;border-radius:50%!important}
+/* entry */
+.eh{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.eh .bigno{font-size:32px;font-weight:bold;min-width:70px;text-align:center;border-radius:12px;padding:2px 10px;border:2px solid var(--line)}
+.eh .tpmark{color:#e53935;font-weight:bold;font-size:14px;border:2px solid #e53935;border-radius:999px;padding:2px 10px}
+.mat{display:flex;gap:6px;flex-wrap:wrap}
+.mat button{min-width:84px;font-weight:bold}
+.mat button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.g-mix{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+.g-cond{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+input.calc{cursor:pointer;background:#fffdf5;border-style:dashed;font-weight:bold}
+.calcicon{font-size:11px;color:var(--pri)}
+.tcell{display:flex;gap:4px}.tcell input{flex:1;min-width:0}.tcell button{padding:4px 8px;font-size:13px;min-height:46px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:90px;font-size:15px}
+.seg button.on-none{background:#44536b;color:#fff;border-color:#44536b}
+.seg button.on-melt{background:#fb8c00;color:#fff;border-color:#fb8c00}
+.seg button.on-pour{background:#7e57c2;color:#fff;border-color:#7e57c2}
+.seg button.on-ok{background:#2e8b57;color:#fff;border-color:#2e8b57}
+.seg button.on-ng{background:#c62828;color:#fff;border-color:#c62828}
+.elapsed{font-size:15px;font-weight:bold;padding:6px 10px;border-radius:8px;background:var(--ok);color:var(--ok-ink);display:inline-block}
+.elapsed.late{background:var(--warn);color:var(--warn-ink)}
+.noro{min-height:46px;font-size:20px;font-weight:bold;width:100%}
+.noro.on{background:var(--ok);color:var(--ok-ink);border-color:#9fd3b1}
+td.no{font-weight:bold}
+tr.sum td{background:#eef1f6;font-weight:bold}
+td.tpc b{outline:2px solid #e53935;border-radius:50%;padding:0 4px}
+/* calculator */
+#dlgCalc .dlg{max-width:420px;margin:0 auto}
+.calc-disp{font-size:34px;font-weight:bold;text-align:right;padding:8px 12px;border:2px solid var(--line);border-radius:10px;min-height:56px;background:#fff;font-variant-numeric:tabular-nums}
+.calc-list{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;margin:8px 0}
+.calc-list span{background:#eef1f6;border-radius:999px;padding:4px 10px;font-size:15px;cursor:pointer}
+.calc-total{font-size:16px;color:var(--sub);margin:4px 0 10px}
+.calc-total b{font-size:26px;color:var(--ink)}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.keys button{min-height:58px;font-size:24px;font-weight:bold}
+.keys .op{background:#eef1f6}
+.keys .ok{background:var(--pri);color:#fff;border-color:var(--pri);font-size:18px}
+@media (max-width:900px){
+  .chips32{grid-template-columns:repeat(8,1fr)}
+  .chips32 .chip{min-height:46px;font-size:15px}
+}
+body.view #entryCard input,body.view #events input,body.view #events textarea,body.view .card input{pointer-events:none;background:#f3f5f8}
+body.view #btnClearRow,body.view #btnAddEv,body.view #btnSettings,body.view #btnInstall,body.view [data-del],body.view [data-now]{display:none!important}
+body.view .seg,body.view #matBtns{pointer-events:none}
+body.view #specLock,body.view #specBtns{display:none!important}
+body.view #viewNote{display:block!important}
+.ev{grid-template-columns:110px 110px 1fr 1fr 140px auto}
+@media (max-width:900px){ .ev{grid-template-columns:1fr 1fr} }
+.spectbl{width:100%;min-width:0;border-collapse:collapse;font-size:14px}
+.spectbl th,.spectbl td{border:1px solid var(--line);padding:4px;text-align:center}
+.spectbl input{min-height:40px;font-size:16px;padding:4px 6px;text-align:center}
+input::placeholder{color:#a8b0bd}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>溶解日報 <span id="viewBadge" hidden style="font-size:13px;background:#fff;color:#7a2e00;border-radius:999px;padding:3px 10px;vertical-align:3px">閲覧用</span></h1>
+  <label class="small" style="color:#f3d9c7">生産日 <span class="id" style="color:#f3d9c7">Tanggal</span> <input id="date" type="date" style="width:auto;min-height:40px;font-size:16px"></label>
+  <button class="sync" id="syncStat" hidden>同期</button>
+  <span class="sp"></span>
+  <button class="ghost" id="btnInstall" hidden>ホーム画面に追加</button>
+  <button class="ghost" id="btnList">日報一覧</button>
+  <button class="ghost" id="btnSettings">設定</button>
+  <button class="pri" id="btnCsv">Excel保存</button>
+</header>
+
+<main>
+  <div id="viewNote" style="display:none;background:#e3eeff;border:1px solid #9cc0f5;border-radius:10px;padding:10px 14px;font-size:15px">
+    <b>閲覧用の画面です。</b> 入力・修正はできません。<span class="id">Layar hanya untuk melihat.</span>
+  </div>
+
+  <section class="card">
+    <h2>日報ヘッダー <span class="id">Header laporan</span></h2>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start">
+      <div><div class="small">目標 <span class="id">Target</span></div><div class="target">45分/チャージ</div></div>
+      <label class="f sup">記録確認（監督者記入）<span class="id">Konfirmasi (pengawas)</span><input id="confirmBy" placeholder="監督者記入"></label>
+      <div class="notice"><span style="color:#e53935;font-weight:bold;font-size:18px">◯</span> の番号 = <b>成分TP 採取タイミング</b><br><span class="id">Waktu pengambilan sampel bahan</span></div>
+    </div>
+    <div class="notice" style="margin-top:10px">FC200/FC250の狙い値に属さない材質の場合は「その他」を選ぶこと（P02生産時など）<br>
+      <span class="id">Jika bahan tidak termasuk nilai target FC200/FC250, pilih "Lainnya" (misalnya saat produksi P02)</span></div>
+    <div class="spec" id="specLine"></div>
+    <div class="docinfo">
+      <div>作成日 <b>2009/08/05</b></div><div>改定日 <b>2019/03/11・2022/11/09</b></div>
+      <div>作成 <b>土橋</b></div><div>照査 <b>田代</b></div><div>承認 <b>浅見</b></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>チャージを選択 <span class="id">Pilih muatan (Tungku peleburan)</span></h2>
+    <div class="chips32" id="chips"></div>
+    <div class="legend">
+      <span class="lg-ok">入力済 <span class="id">Selesai</span></span>
+      <span class="lg-ng">NG</span>
+      <span class="lg-melt">遅れ：溶解工程 <span class="id">Terlambat: Peleburan</span></span>
+      <span class="lg-pour">遅れ：注湯工程 <span class="id">Terlambat: Penuangan</span></span>
+      <span class="lg-tp">成分TP採取 <span class="id">Sampel TP</span></span>
+    </div>
+  </section>
+
+  <section class="card" id="entryCard">
+    <div class="eh">
+      <div class="bigno" id="bigNo">1</div>
+      <div><div class="small">開始予定時刻 <span class="id">Waktu mulai terjadwal</span></div><div style="font-size:22px;font-weight:bold" id="schedTime">8:00</div></div>
+      <span class="tpmark" id="tpMark" hidden>◯ 成分TP採取 <span class="id">Ambil sampel TP</span></span>
+      <span class="sp" style="flex:1"></span>
+      <button id="btnClearRow">このチャージをクリア</button>
+    </div>
+
+    <div class="sec">
+      <div class="t">情報・材質 <span class="id">Info / Bahan</span></div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+        <label class="f">開始時刻 <span class="id">Waktu mulai</span><span class="tcell"><input type="time" data-k="st"><button data-now="st">今</button></span></label>
+        <div class="f"><span class="small">材質 <span class="id">Bahan</span></span>
+          <div class="mat" id="matBtns"><button data-mat="FC200">FC200</button><button data-mat="FC250">FC250</button><button data-mat="other">その他<br><span class="id">Lainnya</span></button></div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="t">配合履歴 (kg) <span class="id">Riwayat komposisi</span> — <span class="calcicon">欄をタップすると電卓が開きます / Ketuk kolom untuk kalkulator</span></div>
+      <div class="grid g-mix">
+        <label class="f">銑鉄 <span class="id">SENTETSU</span><input class="calc" data-k="sen" data-calc="1" readonly inputmode="none"></label>
+        <label class="f">鋼鉄 <span class="id">SINDAN BARA</span><input class="calc" data-k="kou" data-calc="1" readonly inputmode="none"></label>
+        <label class="f">ダライ粉 <span class="id">DARAIKO</span><input class="calc" data-k="dar" data-calc="1" readonly inputmode="none"></label>
+        <label class="f">戻り材 <span class="id">SEKI</span><input class="calc" data-k="mod" data-calc="1" readonly inputmode="none"></label>
+        <label class="f">加炭材 <span class="id">karbon</span><input class="calc" data-k="kat" data-calc="1" readonly inputmode="none"></label>
+        <label class="f">シリコン <span class="id">silikon</span><input class="calc" data-k="sil" data-calc="1" readonly inputmode="none"></label>
+        <label class="f">C/Si追加 <span class="id">Tambahkan</span><input data-k="add" placeholder="例: Si0.5"></label>
+      </div>
+      <div class="small" id="mixTotal" style="margin-top:8px"></div>
+    </div>
+
+    <div class="sec">
+      <div class="t">製造条件 <span class="id">Kondisi produksi</span></div>
+      <div class="grid g-cond">
+        <label class="f">CE <span class="id">komponen</span><input data-k="ce" inputmode="decimal"><span class="hint" data-h="ce"></span></label>
+        <label class="f">C<input data-k="c" inputmode="decimal"><span class="hint" data-h="c"></span></label>
+        <label class="f">Si<input data-k="si" inputmode="decimal"><span class="hint" data-h="si"></span></label>
+        <label class="f">引張強度 <span class="id">Kekuatan tarik</span><input data-k="ten" inputmode="decimal"></label>
+        <label class="f">出湯温度 (℃) <span class="id">Suhu air panas</span><input data-k="temp" inputmode="decimal"><span class="hint" data-h="temp"></span></label>
+        <label class="f">出湯時刻 <span class="id">Waktunya air panas</span><span class="tcell"><input type="time" data-k="tap"><button data-now="tap">今</button></span></label>
+        <label class="f">デマンド回数 <span class="id">Jumlah demand</span><input data-k="dem" inputmode="numeric"></label>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+        <div><div class="t">判定 <span class="id">Pertimbangan</span> <span id="judgeView" style="font-size:18px"></span></div>
+          <div class="seg"><button data-j="auto">自動<br><span class="id">Otomatis</span></button><button data-j="OK">OK</button><button data-j="NG">NG</button></div>
+          <div class="small" id="judgeNote"></div></div>
+        <label class="f">作業者 <span class="id">nama pekerja</span><input data-k="worker" list="workerList" placeholder="氏名 / nama"></label>
+      </div>
+      <div style="margin-top:12px">
+        <div class="t">出湯の遅れ <span class="id">Keterlambatan penuangan</span> <span class="elapsed" id="elapsed" hidden></span></div>
+        <div class="seg" id="delayBtns">
+          <button data-d="">遅れなし<br><span class="id">Tidak terlambat</span></button>
+          <button data-d="melt">溶解工程が原因<br><span class="id">Karena proses peleburan</span></button>
+          <button data-d="pour">注湯工程が原因<br><span class="id">Karena proses penuangan</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="nav">
+      <button id="btnPrev">◀ 前 <span class="id">Sebelumnya</span></button>
+      <button class="pri" id="btnNext">次のチャージへ ▶ <span class="id" style="color:#dfe8f8">Berikutnya</span></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>一覧 (行をタップで編集) <span class="id">Daftar</span></h2>
+    <div class="tbl-wrap">
+      <table style="min-width:1300px">
+        <thead>
+          <tr><th rowspan="2">溶炉</th><th rowspan="2">開始<br>予定</th><th rowspan="2">開始<br>時刻</th><th rowspan="2">材質</th><th colspan="7">配合履歴 (kg)</th><th colspan="7">製造条件</th><th rowspan="2">所要<br>(分)</th><th rowspan="2">判定</th><th rowspan="2">作業者</th></tr>
+          <tr><th>銑鉄</th><th>鋼鉄</th><th>ダライ粉</th><th>戻り材</th><th>加炭材</th><th>シリコン</th><th>C/Si追加</th><th>CE</th><th>C</th><th>Si</th><th>引張強度</th><th>出湯温度</th><th>出湯時刻</th><th>デマンド</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>異常/変化点履歴 <span class="id">Riwayat kelainan / titik perubahan</span></h2>
+    <div id="events"></div>
+    <button id="btnAddEv">＋ 異常/変化点を追加 <span class="id">Tambah</span></button>
+  </section>
+  <p class="small" style="text-align:center">入力内容は自動で保存・共有されます。<span class="id">Data disimpan dan dibagikan otomatis.</span></p>
+</main>
+
+<datalist id="workerList"></datalist>
+
+<dialog id="dlgCalc"><div class="dlg">
+  <h3 id="calcTitle" style="margin-bottom:6px">電卓</h3>
+  <div class="small">数字を入れて「＋」で追加、「確定」で合計を入力します。<span class="id">Masukkan angka, tekan + untuk menambah, Tetapkan untuk memasukkan total.</span></div>
+  <div class="calc-list" id="calcList"></div>
+  <div class="calc-disp" id="calcDisp">0</div>
+  <div class="calc-total">累計 <span class="id">Total</span>: <b id="calcTotal">0</b> kg</div>
+  <div class="keys">
+    <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button><button class="op" data-key="bs">⌫</button>
+    <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button><button class="op" data-key="clr">C</button>
+    <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button><button class="op" data-key="plus">＋</button>
+    <button data-key="0">0</button><button data-key=".">.</button><button class="op" data-key="cancel" style="font-size:15px">閉じる<br><span class="id">Tutup</span></button><button class="ok" data-key="ok">確定<br>Tetapkan</button>
+  </div>
+</div></dialog>
+
+<dialog id="dlgSettings"><div class="dlg">
+  <h3>設定</h3>
+  <div class="t" style="font-weight:bold;margin:8px 0">製造条件の規格（自動判定） <span class="id">Standar kondisi produksi</span></div>
+  <div class="small">材質ごとに下限・上限を入れてください。空欄の項目は判定しません。保存すると全端末に反映されます。<br><span class="id">Isi batas bawah/atas per bahan. Kosong = tanpa penilaian.</span></div>
+  <div id="specLock" style="margin-top:8px;display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+    <label class="f" style="flex:1;min-width:160px">管理者パスワード <span class="id">Kata sandi admin</span><input id="specPin" type="password" inputmode="numeric"></label>
+    <button id="btnSpecUnlock">編集する</button>
+  </div>
+  <div id="specEdit" style="margin-top:8px"></div>
+  <div id="specBtns" style="display:none;gap:8px;margin-top:8px;justify-content:flex-end"><button class="pri" id="btnSpecSave">規格を保存（全端末）</button></div>
+  <div class="small" id="specInfo" style="margin-top:6px"></div>
+  <hr>
+  <div id="dirSec"><div class="t" style="font-weight:bold;margin:8px 0">Excelファイルの保存先フォルダ</div>
+  <div class="small" id="dirInfo">未設定 (ブラウザの「ダウンロード」フォルダに保存されます)</div>
+  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button id="btnPickDir">保存先フォルダを選択</button><button id="btnClearDir">解除</button></div>
+  <hr></div>
+  <div class="t" style="font-weight:bold;margin:8px 0">スプレッドシート連携</div>
+  <label class="f" style="margin-top:8px">送信先URL (Apps Script)<input id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec"></label>
+  <label class="f" style="margin-top:8px">合言葉<input id="cfgToken"></label>
+  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button id="btnCfgSave">この端末に保存</button><button id="btnCfgTest">接続テスト</button></div>
+  <div class="small" id="cfgInfo" style="margin-top:6px"></div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="pri" id="btnSettingsClose">閉じる</button></div>
+</div></dialog>
+
+<dialog id="dlgList"><div class="dlg">
+  <h3 id="listTitle">日報一覧</h3>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+    <button id="mPrev">◀</button><select id="mSel" style="width:auto;min-width:140px"></select><button id="mNext">▶</button>
+    <button id="btnNewDay" style="margin-left:auto">＋ 今日の日報</button>
+  </div>
+  <div class="small" id="listSum" style="margin-bottom:6px"></div>
+  <div id="savedList" style="max-height:60vh;overflow-y:auto"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="pri" onclick="this.closest('dialog').close()">閉じる</button></div>
+</div></dialog>
+
+<dialog id="dlgConfirm"><div class="dlg">
+  <p id="cfMsg" style="font-size:17px;margin:4px 0 18px;white-space:pre-line"></p>
+  <div style="display:flex;justify-content:flex-end;gap:8px"><button id="cfNo">キャンセル</button><button class="pri" id="cfYes">OK</button></div>
+</div></dialog>
+<dialog id="dlgInstall"><div class="dlg">
+  <h3>ホーム画面に追加する方法</h3>
+  <div style="line-height:1.9">
+    <b>iPhone / iPad (Safari)</b><br>
+    1. 画面下(iPadは上)の共有ボタン <span style="border:1px solid #999;border-radius:4px;padding:0 6px">□↑</span> をタップ<br>
+    2.「ホーム画面に追加」をタップ → 右上の「追加」<br>
+    <span class="small">※ LINE などのアプリ内ブラウザでは追加できません。Safariで開いてください。</span><br><br>
+    <b>Android (Chrome)</b><br>
+    1. 右上の「︙」メニューをタップ<br>
+    2.「ホーム画面に追加」または「アプリをインストール」をタップ
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="pri" onclick="this.closest('dialog').close()">閉じる</button></div>
+</div></dialog>
+
+<div id="toast"></div>
+<script src="config.js"></script>
+<script>
+(function(){
+"use strict";
+const APP="yokai", EQUIP="溶解", N=32;
+const VIEW=/[?&#]view\b/.test(location.search+location.hash);
+if(VIEW) document.body.classList.add("view");
+const SCHED=Array.from({length:N},(_,i)=>{ const m=8*60+45*i; return `${Math.floor(m/60)%24}:${String(m%60).padStart(2,"0")}`; });
+const TP=new Set([1,4,8,12,16,20,24,28]);
+const MIX=["sen","kou","dar","mod","kat","sil"];
+const MIXL={sen:"銑鉄 SENTETSU",kou:"鋼鉄 SINDAN BARA",dar:"ダライ粉 DARAIKO",mod:"戻り材 SEKI",kat:"加炭材 karbon",sil:"シリコン silikon"};
+const CHK=["ce","c","si","temp"], CHKL={ce:"CE",c:"C",si:"Si",temp:"出湯温度"};
+const TARGET_MIN=45;
+const LS={ get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true;}catch(e){return false;} },
+  del(k){ try{ localStorage.removeItem(k);}catch(e){} }, keys(){ try{ return Object.keys(localStorage);}catch(e){return [];} } };
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let SPEC=JSON.parse(JSON.stringify((window.SUNA_CONFIG&&window.SUNA_CONFIG.spec)||{}));
+{ const sp=LS.get(APP+":spec",null); if(sp&&sp.spec) SPEC=sp.spec; }
+let specU=(LS.get(APP+":spec",null)||{}).u||0;
+let workers=LS.get(APP+":workers",[]);
+let state, sel=0;
+
+function todayStr(){ const d=new Date(); if(d.getHours()<8) d.setDate(d.getDate()-1); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function nowSlot(){ const d=new Date(); let m=d.getHours()*60+d.getMinutes()-8*60; if(m<0) m+=1440; return Math.min(N-1,Math.floor(m/45)); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function blankRow(){ return {st:"",mat:"",sen:"",kou:"",dar:"",mod:"",kat:"",sil:"",add:"",calc:{},ce:"",c:"",si:"",ten:"",temp:"",tap:"",dem:"",judge:"",jm:false,worker:"",delay:"",u:0}; }
+function blankState(date){ return {date,equip:EQUIP,confirmBy:"",hu:0,rows:Array.from({length:N},blankRow),events:[]}; }
+function key(){ return APP+":day:"+state.date; }
+function save(){ state.updated=new Date().toISOString(); LS.set(key(),state); }
+function normalize(s){ const b=blankState(s.date); s=Object.assign(b,s); s.equip=EQUIP;
+  s.rows=Array.from({length:N},(_,i)=>{ const r=Object.assign(blankRow(),(s.rows||[])[i]||{}); r.calc=r.calc||{}; return r; });
+  s.events=(s.events||[]).map(e=>Object.assign({id:uid(),u:1,start:"",end:"",person:"",content:"",action:""},e)); return s; }
+function load(date){ state=normalize(LS.get(APP+":day:"+date,null)||blankState(date)); }
+function liveEvents(){ return state.events.filter(e=>!e.del); }
+
+// ---- 判定 ----
+function num(v){ if(v===""||v==null) return null; const n=parseFloat(String(v).replace(/[，,]/g,".")); return isNaN(n)?null:n; }
+function specOf(r,k){ const m=SPEC[r.mat]; if(!m) return null; const s=m[k]; return (s&&s.min!=null&&s.max!=null&&s.min!==""&&s.max!=="")?s:null; }
+function cls(r,k){ const n=num(r[k]), s=specOf(r,k); if(n==null||!s) return ""; return (n<s.min||n>s.max)?"ng":"ok"; }
+function autoJ(r){ let any=false, ng=false; CHK.forEach(k=>{ const c=cls(r,k); if(c) any=true; if(c==="ng") ng=true; }); return ng?"NG":(any?"OK":""); }
+function judgeOf(r){ return r.jm? r.judge : autoJ(r); }
+function rowHas(r){ return ["st","mat","sen","kou","dar","mod","kat","sil","add","ce","c","si","ten","temp","tap","dem","worker","delay"].some(k=>(r[k]||"")!=="") || r.jm; }
+function tmin(t){ if(!t) return null; const m=/^(\d{1,2}):(\d{2})/.exec(t); return m? (+m[1])*60+(+m[2]) : null; }
+function elapsed(r){ const a=tmin(r.st), b=tmin(r.tap); if(a==null||b==null) return null; let d=b-a; if(d<0) d+=1440; return d; }
+function fmtNum(n){ return Math.round(n*1000)/1000+""; }
+function specText(){
+  const one=(m)=>{ const s=SPEC[m]; if(!s) return "未設定"; const parts=CHK.map(k=>s[k]&&s[k].min!=null&&s[k].max!=null?`${CHKL[k]} ${s[k].min}〜${s[k].max}${k==="temp"?"℃":""}`:null).filter(Boolean); return parts.length?parts.join(" / "):"未設定"; };
+  return `<span><b>FC200 規格</b> ${one("FC200")}</span><span><b>FC250 規格</b> ${one("FC250")}</span><span class="id">その他は自動判定なし (Lainnya: tanpa penilaian otomatis)</span>`;
+}
+
+// ---- 描画 ----
+function chipClass(r){ if(r.delay==="melt") return "melt"; if(r.delay==="pour") return "pour"; if(judgeOf(r)==="NG") return "ng"; return rowHas(r)?"filled":""; }
+function renderChips(){
+  const ns = state.date===todayStr()? nowSlot() : -1;
+  $("chips").innerHTML=state.rows.map((r,i)=>`<button class="chip ${chipClass(r)} ${TP.has(i+1)?"tp":""} ${i===sel?"sel":""} ${i===ns?"now":""}" data-i="${i}">${i+1}<small>${SCHED[i]}</small></button>`).join("");
+}
+function renderHeader(){ $("date").value=state.date; $("confirmBy").value=state.confirmBy; $("specLine").innerHTML=specText(); }
+const PREVK={ce:"",c:"",si:"",kat:" kg",sil:" kg"};
+// 前のチャージ(同じ日のより前の番号)で入力された値。なければ前日以前(この端末)の最後の値
+function prevVal(i,k){ for(let j=i-1;j>=0;j--){ const v=state.rows[j][k]; if(v) return v; }
+  const ks=LS.keys().filter(x=>x.startsWith(APP+":day:")).map(x=>x.slice(APP.length+5)).filter(d=>d<state.date).sort().reverse();
+  for(const d of ks){ const st=LS.get(APP+":day:"+d,null); if(!st||!st.rows) continue; for(let j=st.rows.length-1;j>=0;j--){ const v=st.rows[j]&&st.rows[j][k]; if(v) return v; } }
+  return ""; }
+function renderEntry(){
+  const r=state.rows[sel];
+  $("bigNo").textContent=sel+1; $("bigNo").className="bigno no "+(r.delay||""); $("schedTime").textContent=SCHED[sel]; $("tpMark").hidden=!TP.has(sel+1);
+  document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{ const k=inp.dataset.k; inp.value=r[k]||"";
+    if(k in PREVK){ const pv=prevVal(sel,k); inp.placeholder = pv ? `前回 ${pv}${PREVK[k]}` : (k==="kat"||k==="sil"?"タップで電卓":""); }
+    if(k==="worker"&&!r.worker){ const p=sel>0?state.rows[sel-1].worker:""; inp.placeholder=p?"前回 "+p:"氏名 / nama"; } });
+  document.querySelectorAll("#matBtns button").forEach(b=>b.classList.toggle("on",b.dataset.mat===r.mat));
+  updateMarks();
+}
+function updateMarks(){
+  const r=state.rows[sel];
+  CHK.forEach(k=>{ const inp=document.querySelector(`#entryCard input[data-k="${k}"]`); const c=cls(r,k); inp.className=c; const s=specOf(r,k); const h=document.querySelector(`[data-h="${k}"]`);
+    h.className="hint "+(c==="ng"?"ng":""); h.textContent=c==="ng"?`規格外 (${s.min}〜${s.max})`:(c==="ok"?"OK":(s?`規格 ${s.min}〜${s.max}`:"")); });
+  const tot=MIX.reduce((a,k)=>a+(num(r[k])||0),0); $("mixTotal").textContent= tot? `このチャージの配合合計 Total: ${fmtNum(tot)} kg` : "";
+  const j=judgeOf(r); $("judgeView").textContent=j||"－"; $("judgeView").style.color=j==="NG"?"var(--ng-ink)":j==="OK"?"var(--ok-ink)":"var(--sub)";
+  document.querySelectorAll("[data-j]").forEach(b=>{ const v=b.dataset.j; b.className = (v==="auto"&&!r.jm)?"on-none":(r.jm&&r.judge===v?(v==="OK"?"on-ok":"on-ng"):""); });
+  $("judgeNote").textContent = r.jm? `手動 (自動判定: ${autoJ(r)||"－"})` : (r.mat==="other"?"その他：自動判定なし。OK/NGを選んでください":"溶湯成分・出湯温度の規格で自動判定");
+  document.querySelectorAll("#delayBtns button").forEach(b=>{ const v=b.dataset.d; b.className = r.delay===v ? (v===""?"on-none":"on-"+v) : ""; });
+  const e=elapsed(r); const el=$("elapsed"); el.hidden=e==null; if(e!=null){ el.textContent=`開始→出湯 ${e}分 (目標${TARGET_MIN}分)`; el.className="elapsed"+(e>TARGET_MIN?" late":""); }
+  $("bigNo").className="bigno no "+(r.delay||"");
+}
+function renderTable(){
+  const tot={}; MIX.forEach(k=>tot[k]=0);
+  const rows=state.rows.map((r,i)=>{ MIX.forEach(k=>tot[k]+=num(r[k])||0);
+    const j=judgeOf(r), e=elapsed(r), c=k=>`<td class="${cls(r,k)}">${esc(r[k])}</td>`;
+    const mat=r.mat==="other"?"その他":r.mat;
+    return `<tr data-i="${i}" class="${i===sel?"sel":""}"><td class="no ${r.delay||""} ${TP.has(i+1)?"tpc":""}"><b>${i+1}</b></td><td>${SCHED[i]}</td><td>${esc(r.st)}</td><td>${esc(mat)}</td>`+
+      MIX.map(k=>`<td>${esc(r[k])}</td>`).join("")+`<td>${esc(r.add)}</td>${c("ce")}${c("c")}${c("si")}<td>${esc(r.ten)}</td>${c("temp")}<td>${esc(r.tap)}</td><td>${esc(r.dem)}</td>`+
+      `<td class="${e!=null&&e>TARGET_MIN?"warn":""}">${e==null?"":e}</td><td class="${j==="NG"?"jNG":""}">${j}</td><td>${esc(r.worker)}</td></tr>`; }).join("");
+  $("tbody").innerHTML=rows+`<tr class="sum"><td colspan="4">累計 (kg)<br><span class="id">Total</span></td>`+MIX.map(k=>`<td>${tot[k]?fmtNum(tot[k]):""}</td>`).join("")+`<td colspan="11"></td></tr>`;
+}
+function renderEvents(){
+  if(!liveEvents().length){ $("events").innerHTML='<div class="small" style="margin-bottom:10px">記録なし</div>'; return; }
+  $("events").innerHTML=state.events.map((e,i)=>e.del?"":`
+   <div class="ev" data-e="${i}">
+     <label class="f">発生時刻 <span class="id">Waktu</span><input type="time" data-ek="start" value="${esc(e.start)}" ${VIEW?"readonly":""}></label>
+     <label class="f">〜<input type="time" data-ek="end" value="${esc(e.end)}" ${VIEW?"readonly":""}></label>
+     <label class="f wide">異常/変化点内容 <span class="id">Detail kelainan</span><textarea data-ek="content" ${VIEW?"readonly":""}>${esc(e.content)}</textarea></label>
+     <label class="f wide">処置内容 <span class="id">Tindakan</span><textarea data-ek="action" ${VIEW?"readonly":""}>${esc(e.action)}</textarea></label>
+     <label class="f">担当 <span class="id">yang bertanggung</span><input data-ek="person" list="workerList" value="${esc(e.person)}" ${VIEW?"readonly":""}></label>
+     <button data-del="${i}" style="align-self:end">削除</button>
+   </div>`).join("");
+}
+function renderWorkers(){ $("workerList").innerHTML=workers.map(w=>`<option value="${esc(w)}">`).join(""); }
+function renderAll(){ renderHeader(); renderChips(); renderEntry(); renderTable(); renderEvents(); renderWorkers(); }
+function refreshLight(){ renderChips(); renderTable(); updateMarks(); }
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2600); }
+function askConfirm(msg){ return new Promise(res=>{ const d=$("dlgConfirm"); $("cfMsg").textContent=msg;
+  const done=v=>{ $("cfYes").onclick=$("cfNo").onclick=null; d.onclose=null; if(d.open) d.close(); res(v); };
+  $("cfYes").onclick=()=>done(true); $("cfNo").onclick=()=>done(false); d.onclose=()=>done(false); d.showModal(); }); }
+function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+function selectSlot(i){ sel=(i+N)%N; renderChips(); renderEntry(); renderTable(); }
+function touchRow(i){ if(VIEW) return; state.rows[i].u=Date.now(); save(); Sync.queue("row",i); }
+function rememberWorker(w){ if(w&&!workers.includes(w)){ workers.unshift(w); workers=workers.slice(0,40); LS.set(APP+":workers",workers); renderWorkers(); } }
+
+// ---- 入力 ----
+$("chips").addEventListener("click",e=>{ const b=e.target.closest(".chip"); if(b) selectSlot(+b.dataset.i); });
+$("tbody").addEventListener("click",e=>{ const tr=e.target.closest("tr[data-i]"); if(tr){ selectSlot(+tr.dataset.i); $("entryCard").scrollIntoView({behavior:"smooth",block:"start"}); } });
+document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{
+  if(inp.dataset.calc) return;
+  inp.addEventListener("input",()=>{ if(VIEW) return; const r=state.rows[sel], k=inp.dataset.k; r[k]=inp.value.trim();
+    if(k==="temp"&&r.temp&&!r.tap){ r.tap=nowHM(); document.querySelector('#entryCard input[data-k="tap"]').value=r.tap; }
+    touchRow(sel); refreshLight(); });
+  if(inp.dataset.k==="worker") inp.addEventListener("change",()=>rememberWorker(inp.value.trim()));
+});
+document.querySelectorAll("[data-now]").forEach(b=>b.addEventListener("click",e=>{ e.preventDefault(); if(VIEW) return; const k=b.dataset.now; state.rows[sel][k]=nowHM(); document.querySelector(`#entryCard input[data-k="${k}"]`).value=state.rows[sel][k]; touchRow(sel); refreshLight(); }));
+$("matBtns").addEventListener("click",e=>{ const b=e.target.closest("[data-mat]"); if(!b||VIEW) return; const r=state.rows[sel]; r.mat = r.mat===b.dataset.mat ? "" : b.dataset.mat; touchRow(sel); renderEntry(); refreshLight(); });
+document.querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{ if(VIEW) return; const r=state.rows[sel], v=b.dataset.j; if(v==="auto"){ r.jm=false; r.judge=""; } else { r.jm=true; r.judge=v; } touchRow(sel); refreshLight(); });
+$("delayBtns").addEventListener("click",e=>{ const b=e.target.closest("[data-d]"); if(!b||VIEW) return; state.rows[sel].delay=b.dataset.d; touchRow(sel); refreshLight(); });
+$("btnClearRow").onclick=async()=>{ if(await askConfirm("No."+(sel+1)+" の入力内容をクリアしますか?")){ state.rows[sel]=blankRow(); touchRow(sel); renderEntry(); refreshLight(); } };
+$("btnNext").onclick=()=>{ const r=state.rows[sel]; if(!r.worker&&sel>0&&rowHas(r)&&state.rows[sel-1].worker){ r.worker=state.rows[sel-1].worker; touchRow(sel); } selectSlot(sel+1); window.scrollTo({top:$("entryCard").offsetTop-70,behavior:"smooth"}); };
+$("btnPrev").onclick=()=>selectSlot(sel-1);
+$("confirmBy").addEventListener("input",e=>{ if(VIEW) return; state.confirmBy=e.target.value.trim(); state.hu=Date.now(); save(); Sync.queue("header",""); });
+$("btnAddEv").onclick=()=>{ const ev={id:uid(),u:Date.now(),start:nowHM(),end:"",person:state.rows[sel].worker||"",content:"",action:""}; state.events.push(ev); save(); Sync.queue("event",ev.id); renderEvents(); };
+$("events").addEventListener("input",e=>{ if(VIEW) return; const box=e.target.closest(".ev"), k=e.target.dataset.ek; if(box&&k){ const ev=state.events[+box.dataset.e]; ev[k]=e.target.value; ev.u=Date.now(); save(); Sync.queue("event",ev.id); } });
+$("events").addEventListener("click",async e=>{ const d=e.target.dataset.del; if(d!=null && await askConfirm("この記録を削除しますか?")){ const ev=state.events[+d]; ev.del=true; ev.u=Date.now(); save(); Sync.queue("event",ev.id); renderEvents(); } });
+$("date").addEventListener("change",()=>{ const d=$("date").value; if(!d) return; load(d); sel= d===todayStr()?nowSlot():0; renderAll(); Sync.pull(); });
+
+// ---- 電卓 ----
+let calc={k:null,list:[],cur:""};
+function calcTotal(){ return calc.list.reduce((a,b)=>a+b,0)+(num(calc.cur)||0); }
+function renderCalc(){ $("calcList").innerHTML=calc.list.length?calc.list.map((v,i)=>`<span data-ci="${i}" title="タップで削除">${fmtNum(v)} ✕</span>`).join(""):'<span class="id" style="background:none;cursor:default">まだ追加なし / Belum ada</span>';
+  $("calcDisp").textContent=calc.cur||"0"; $("calcTotal").textContent=fmtNum(calcTotal()); }
+function openCalc(k){ if(VIEW) return; const r=state.rows[sel]; calc.k=k; const expr=(r.calc&&r.calc[k])||"";
+  calc.list = expr ? expr.split("+").map(num).filter(v=>v!=null) : (num(r[k])!=null?[num(r[k])]:[]); calc.cur="";
+  $("calcTitle").textContent=`No.${sel+1}　${MIXL[k]} (kg)`; renderCalc(); $("dlgCalc").showModal(); }
+document.querySelectorAll("input[data-calc]").forEach(inp=>inp.addEventListener("click",()=>openCalc(inp.dataset.k)));
+$("calcList").addEventListener("click",e=>{ const s=e.target.closest("[data-ci]"); if(!s) return; calc.list.splice(+s.dataset.ci,1); renderCalc(); });
+document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e.target.closest("[data-key]"); if(!b) return; const k=b.dataset.key;
+  if(/^[0-9]$/.test(k)){ if(calc.cur.length<9) calc.cur=(calc.cur==="0"?"":calc.cur)+k; }
+  else if(k==="."){ if(!calc.cur.includes(".")) calc.cur=(calc.cur||"0")+"."; }
+  else if(k==="bs"){ calc.cur=calc.cur.slice(0,-1); }
+  else if(k==="clr"){ calc.cur=""; calc.list=[]; }
+  else if(k==="plus"){ const v=num(calc.cur); if(v!=null){ calc.list.push(v); calc.cur=""; } }
+  else if(k==="cancel"){ $("dlgCalc").close(); return; }
+  else if(k==="ok"){ const v=num(calc.cur); if(v!=null) calc.list.push(v); const r=state.rows[sel]; const tot=calc.list.reduce((a,b)=>a+b,0);
+    r[calc.k]=calc.list.length?fmtNum(tot):""; r.calc=r.calc||{}; r.calc[calc.k]=calc.list.length>1?calc.list.map(fmtNum).join("+"):"";
+    $("dlgCalc").close(); touchRow(sel); renderEntry(); refreshLight(); return; }
+  renderCalc(); });
+document.addEventListener("keydown",e=>{ if(!$("dlgCalc").open) return; const map={"Enter":"ok","Backspace":"bs","+":"plus","Escape":"cancel"}; const k=map[e.key]||(/^[0-9.]$/.test(e.key)?e.key:null); if(!k) return; e.preventDefault(); const b=document.querySelector(`#dlgCalc [data-key="${k}"]`); if(b) b.click(); });
+
+// ---- 設定 (製造条件の規格) ----
+const SPECK=[["ce","CE",""],["c","C",""],["si","Si",""],["temp","出湯温度","℃"]];
+let specUnlocked=false;
+function renderSpecEdit(){
+  const v=x=>x==null?"":x, dis=specUnlocked?"":"disabled";
+  $("specEdit").innerHTML=`<table class="spectbl"><thead><tr><th>項目</th><th colspan="2">FC200<br><span class="id">下限 / 上限</span></th><th colspan="2">FC250<br><span class="id">下限 / 上限</span></th></tr></thead><tbody>`+
+    SPECK.map(([k,l,u])=>`<tr><td><b>${l}</b>${u?`<br><span class="id">${u}</span>`:""}</td>`+["FC200","FC250"].map(m=>{ const s=(SPEC[m]||{})[k]||{};
+      return `<td><input data-sm="${m}" data-sk="${k}" data-sf="min" inputmode="decimal" value="${v(s.min)}" ${dis}></td><td><input data-sm="${m}" data-sk="${k}" data-sf="max" inputmode="decimal" value="${v(s.max)}" ${dis}></td>`; }).join("")+`</tr>`).join("")+`</tbody></table>`;
+  $("specBtns").style.display=specUnlocked?"flex":"none"; $("specLock").style.display=specUnlocked?"none":"flex";
+}
+function adminPin(){ return String((window.SUNA_CONFIG&&window.SUNA_CONFIG.adminPin)||"0000"); }
+$("btnSpecUnlock").onclick=()=>{ if(VIEW) return; if($("specPin").value===adminPin()){ specUnlocked=true; $("specPin").value=""; renderSpecEdit(); $("specInfo").textContent=""; } else { $("specInfo").textContent="パスワードが違います / Kata sandi salah"; } };
+$("btnSpecSave").onclick=()=>{
+  const ns={}; ["FC200","FC250"].forEach(m=>{ ns[m]={}; SPECK.forEach(([k])=>ns[m][k]={min:null,max:null}); });
+  let bad="";
+  document.querySelectorAll("#specEdit input[data-sm]").forEach(inp=>{ const v=inp.value.trim(); const n=v===""?null:num(v); if(v!==""&&n==null) bad="数字を入れてください"; ns[inp.dataset.sm][inp.dataset.sk][inp.dataset.sf]=n; });
+  ["FC200","FC250"].forEach(m=>SPECK.forEach(([k,l])=>{ const s=ns[m][k]; if(s.min!=null&&s.max!=null&&s.min>s.max) bad=`${m} ${l}：下限が上限より大きいです`; }));
+  if(bad){ $("specInfo").textContent=bad; return; }
+  SPEC=ns; specU=Date.now(); LS.set(APP+":spec",{spec:SPEC,u:specU}); Sync.queueSpec(SPEC,specU);
+  specUnlocked=false; renderSpecEdit(); renderAll(); $("specInfo").textContent="保存しました（全端末に反映されます）"; toast("規格を保存しました");
+};
+function applyServerSpec(sp,u){ if(!sp||!(u>specU)) return; SPEC=sp; specU=u; LS.set(APP+":spec",{spec:SPEC,u:specU}); renderHeader(); renderChips(); renderTable(); updateMarks(); if($("dlgSettings").open&&!specUnlocked) renderSpecEdit(); }
+$("btnSettings").onclick=()=>{ specUnlocked=false; renderSpecEdit(); $("specInfo").textContent=""; updateDirInfo(); const c=Sync.getCfg(); $("cfgUrl").value=c.syncUrl||""; $("cfgToken").value=c.token||""; $("cfgInfo").textContent=""; $("dlgSettings").showModal(); };
+$("btnSettingsClose").onclick=()=>$("dlgSettings").close();
+
+// ---- 日報一覧 ----
+const WD="日月火水木金土";
+function ymOf(d){ return d.slice(0,7); }
+function ymShift(ym,n){ const [y,m]=ym.split("-").map(Number); const d=new Date(y,m-1+n,1); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function fmtDay(d){ const x=new Date(d+"T00:00:00"); return `${x.getMonth()+1}/${x.getDate()}(${WD[x.getDay()]})`; }
+function fmtTime(u){ if(!u) return ""; const x=new Date(u); return `${x.getMonth()+1}/${x.getDate()} ${x.getHours()}:${String(x.getMinutes()).padStart(2,"0")}`; }
+let listYM=null;
+function localDays(){ return LS.keys().filter(k=>k.startsWith(APP+":day:")).map(k=>{ const date=k.slice(APP.length+5); const st=normalize(LS.get(k,{date}));
+  return {date,filled:st.rows.filter(rowHas).length,ng:st.rows.filter(r=>judgeOf(r)==="NG").length,melt:st.rows.filter(r=>r.delay==="melt").length,pour:st.rows.filter(r=>r.delay==="pour").length,events:st.events.filter(e=>!e.del).length,u:Date.parse(st.updated||"")||0}; }); }
+function dayItem(it){
+  const today=it.date===todayStr(), cur=it.date===state.date;
+  const badges=[`<span class="badge ${it.filled?"b-ok":"b-g"}">${it.filled}/${N}チャージ</span>`, it.ng?`<span class="badge b-ng">NG ${it.ng}</span>`:"",
+    it.melt?`<span class="badge" style="background:#ffcc80;color:#6d3200">溶解遅れ ${it.melt}</span>`:"", it.pour?`<span class="badge" style="background:#b39ddb;color:#311b92">注湯遅れ ${it.pour}</span>`:"",
+    it.events?`<span class="badge b-g">異常/変化点 ${it.events}</span>`:""].join("");
+  return `<div class="list-item open" data-d="${esc(it.date)}" style="${cur?"background:#e3eeff;":""}">
+    <div><b style="font-size:17px">${fmtDay(it.date)}</b>${today?' <span class="badge b-w">今日</span>':""}<br>${badges}</div>
+    <div class="small" style="text-align:right">${it.u?"更新 "+fmtTime(it.u):""}<br><span style="color:var(--pri);font-weight:bold">開く ›</span></div></div>`;
+}
+async function renderList(){
+  const box=$("savedList"), on=!!Sync.getCfg().syncUrl, ym=listYM;
+  $("listTitle").textContent = on ? "日報一覧 (全端末の共有データ)" : "日報一覧 (この端末)";
+  const months=new Set([ym]); for(let i=-12;i<=1;i++) months.add(ymShift(ymOf(todayStr()),i));
+  let items=[], note="";
+  if(on && navigator.onLine!==false){ box.innerHTML='<div class="small" style="padding:12px">読み込み中…</div>';
+    try{ const j=await Sync.list(ym); if(listYM!==ym) return; items=j.days||[]; (j.months||[]).forEach(m=>months.add(m)); }
+    catch(e){ note="共有データを読み込めませんでした。この端末のデータを表示しています。"; items=localDays().filter(x=>ymOf(x.date)===ym); } }
+  else { if(on) note="オフラインのため、この端末のデータを表示しています。"; items=localDays().filter(x=>ymOf(x.date)===ym); }
+  $("mSel").innerHTML=[...months].sort().reverse().map(m=>`<option value="${m}" ${m===ym?"selected":""}>${m.replace("-","年")}月</option>`).join("");
+  items.sort((a,b)=>a.date<b.date?1:-1);
+  $("listSum").textContent=(note?note+" / ":"")+`${items.length}日分`;
+  box.innerHTML=items.length?items.map(dayItem).join(""):'<div class="small" style="padding:12px">この月の日報はありません</div>';
+}
+$("btnList").onclick=()=>{ listYM=ymOf(state.date||todayStr()); $("dlgList").showModal(); renderList(); };
+$("mPrev").onclick=()=>{ listYM=ymShift(listYM,-1); renderList(); };
+$("mNext").onclick=()=>{ listYM=ymShift(listYM,1); renderList(); };
+$("mSel").onchange=e=>{ listYM=e.target.value; renderList(); };
+$("btnNewDay").onclick=()=>{ $("dlgList").close(); load(todayStr()); sel=nowSlot(); renderAll(); Sync.pull(); };
+$("savedList").addEventListener("click",e=>{ const it=e.target.closest(".list-item.open"); if(!it) return; $("dlgList").close(); load(it.dataset.d); sel=0; renderAll(); Sync.pull(); toast(fmtDay(it.dataset.d)+" を開きました"); window.scrollTo({top:0,behavior:"smooth"}); });
+
+// ---- folder handle (File System Access API) ----
+let dirHandle=null;
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open("yokai-nippo",1); r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function idbGet(k){ try{ const db=await idb(); return await new Promise(res=>{ const q=db.transaction("kv").objectStore("kv").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>res(null); }); }catch(e){ return null; } }
+async function idbSet(k,v){ try{ const db=await idb(); await new Promise(res=>{ const t=db.transaction("kv","readwrite"); t.objectStore("kv").put(v,k); t.oncomplete=res; t.onerror=res; }); }catch(e){} }
+function updateDirInfo(){ $("dirInfo").textContent = dirHandle ? "保存先: "+dirHandle.name+" フォルダ" : "未設定 (ブラウザの「ダウンロード」フォルダに保存されます)"; $("btnPickDir").disabled=!window.showDirectoryPicker; }
+$("btnPickDir").onclick=async()=>{ try{ dirHandle=await window.showDirectoryPicker({mode:"readwrite"}); await idbSet("dir",dirHandle); updateDirInfo(); toast("保存先を設定しました: "+dirHandle.name); }catch(e){} };
+$("btnClearDir").onclick=async()=>{ dirHandle=null; await idbSet("dir",null); updateDirInfo(); };
+(async()=>{ const h=await idbGet("dir"); if(h) dirHandle=h; })();
+
+const XE = s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"");
+function colName(c){ let s=""; c++; while(c>0){ const m=(c-1)%26; s=String.fromCharCode(65+m)+s; c=Math.floor((c-1)/26);} return s; }
+function ref(c,r){ return colName(c)+(r+1); }
+function asVal(v){ if(v===""||v==null) return null; if(typeof v==="number") return v; const s=String(v).trim(); if(/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s); return s; }
+// style registry
+const XS={fonts:['<font><sz val="11"/><name val="Meiryo UI"/></font>','<font><b/><sz val="11"/><name val="Meiryo UI"/></font>','<font><b/><sz val="11"/><color rgb="FFB00020"/><name val="Meiryo UI"/></font>','<font><b/><sz val="16"/><name val="Meiryo UI"/></font>','<font><sz val="9"/><color rgb="FF5D6778"/><name val="Meiryo UI"/></font>'],
+  fills:{none:0,gray:1,head:2,warn:3,ng:4,off:5,sel:6},
+  fillXml:['<fill><patternFill patternType="none"/></fill>','<fill><patternFill patternType="gray125"/></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FFEEF1F6"/></patternFill></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FFFFF3C4"/></patternFill></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FFFFDCDC"/></patternFill></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FFE8EAEE"/></patternFill></fill>','<fill><patternFill patternType="solid"><fgColor rgb="FFE3EEFF"/></patternFill></fill>'],
+  fmts:{gen:0,d2:164,d1:165}, xfs:[], map:{}};
+function st(o){ o=Object.assign({font:0,fill:"none",border:0,fmt:"gen",h:"",wrap:false},o||{});
+  const k=JSON.stringify(o); if(XS.map[k]!=null) return XS.map[k];
+  const al = (o.h||o.wrap) ? `<alignment${o.h?` horizontal="${o.h}"`:""} vertical="center"${o.wrap?' wrapText="1"':""}/>` : '<alignment vertical="center"/>';
+  XS.xfs.push(`<xf numFmtId="${XS.fmts[o.fmt]}" fontId="${o.font}" fillId="${XS.fills[o.fill]}" borderId="${o.border}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyNumberFormat="1" applyAlignment="1">${al}</xf>`);
+  return XS.map[k]=XS.xfs.length-1; }
+st({}); // index 0
+function stylesXml(){ return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+ '<numFmts count="2"><numFmt numFmtId="164" formatCode="0.00"/><numFmt numFmtId="165" formatCode="0.0"/></numFmts>'+
+ `<fonts count="${XS.fonts.length}">${XS.fonts.join("")}</fonts><fills count="${XS.fillXml.length}">${XS.fillXml.join("")}</fills>`+
+ '<borders count="2"><border/><border><left style="thin"><color rgb="FF808A99"/></left><right style="thin"><color rgb="FF808A99"/></right><top style="thin"><color rgb="FF808A99"/></top><bottom style="thin"><color rgb="FF808A99"/></bottom></border></borders>'+
+ '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+ `<cellXfs count="${XS.xfs.length}">${XS.xfs.join("")}</cellXfs><cellStyles count="1"><cellStyle name="標準" xfId="0" builtinId="0"/></cellStyles></styleSheet>`; }
+// sheet builder
+function Sheet(name){ this.name=name; this.cells={}; this.merges=[]; this.cols=[]; this.heights={}; this.maxR=0; this.maxC=0; this.freeze=null; this.landscape=false; }
+Sheet.prototype.set=function(c,r,v,s){ this.cells[r]=this.cells[r]||{}; this.cells[r][c]={v:asVal(v),s:s||0}; this.maxR=Math.max(this.maxR,r); this.maxC=Math.max(this.maxC,c); };
+Sheet.prototype.merge=function(c1,r1,c2,r2,v,s){ for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++) this.set(c,r,(r===r1&&c===c1)?v:"",s); if(c1!==c2||r1!==r2) this.merges.push(ref(c1,r1)+":"+ref(c2,r2)); };
+Sheet.prototype.xml=function(){
+  let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">';
+  x+= this.landscape ? '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' : '';
+  x+='<sheetViews><sheetView workbookViewId="0"'+(this.showGrid===false?' showGridLines="0"':'')+'>';
+  if(this.freeze) x+=`<pane ySplit="${this.freeze}" topLeftCell="A${this.freeze+1}" activePane="bottomLeft" state="frozen"/>`;
+  x+='</sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/>';
+  if(this.cols.length) x+='<cols>'+this.cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")+'</cols>';
+  x+='<sheetData>';
+  for(let r=0;r<=this.maxR;r++){ const row=this.cells[r]; const h=this.heights[r];
+    if(!row && !h) continue;
+    x+=`<row r="${r+1}"${h?` ht="${h}" customHeight="1"`:""}>`;
+    if(row) Object.keys(row).map(Number).sort((a,b)=>a-b).forEach(c=>{ const {v,s}=row[c]; const rf=ref(c,r);
+      if(v==null) x+=`<c r="${rf}" s="${s}"/>`;
+      else if(typeof v==="number") x+=`<c r="${rf}" s="${s}"><v>${v}</v></c>`;
+      else x+=`<c r="${rf}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${XE(v)}</t></is></c>`; });
+    x+='</row>'; }
+  x+='</sheetData>';
+  if(this.autoFilter) x+=`<autoFilter ref="${this.autoFilter}"/>`;
+  if(this.merges.length) x+=`<mergeCells count="${this.merges.length}">`+this.merges.map(m=>`<mergeCell ref="${m}"/>`).join("")+'</mergeCells>';
+  x+='<pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>';
+  if(this.landscape) x+='<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>';
+  return x+'</worksheet>'; };
+// zip (store)
+const CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(b){ let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=CRC[(c^b[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function zip(files){ const enc=new TextEncoder(); const parts=[], cen=[]; let off=0;
+  const d=new Date(), dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(), tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  files.forEach(f=>{ const nm=enc.encode(f.name), data=enc.encode(f.data), crc=crc32(data);
+    const h=new DataView(new ArrayBuffer(30)); h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true); h.setUint16(10,tm,true); h.setUint16(12,dt,true); h.setUint32(14,crc,true); h.setUint32(18,data.length,true); h.setUint32(22,data.length,true); h.setUint16(26,nm.length,true); h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nm,data);
+    const c=new DataView(new ArrayBuffer(46)); c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,0,true); c.setUint16(12,tm,true); c.setUint16(14,dt,true); c.setUint32(16,crc,true); c.setUint32(20,data.length,true); c.setUint32(24,data.length,true); c.setUint16(28,nm.length,true); c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),nm); off+=30+nm.length+data.length; });
+  const csize=cen.reduce((a,b)=>a+b.length,0); const e=new DataView(new ArrayBuffer(22)); e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,csize,true); e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}); }
+function workbook(sheets){
+  const files=[
+   {name:"[Content_Types].xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")+'</Types>'},
+   {name:"_rels/.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+   {name:"xl/workbook.xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheets.map((s,i)=>`<sheet name="${XE(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")+'</sheets>'+
+     (sheets.some(s=>s.autoFilter)?'<definedNames>'+sheets.map((s,i)=>s.autoFilter?`<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${XE(s.name)}'!$${s.autoFilter.replace(":",":$").replace(/([A-Z]+)(\d+)/g,"$1$$$2")}</definedName>`:"").join("")+'</definedNames>':'')+'</workbook>'},
+   {name:"xl/_rels/workbook.xml.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")+`<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`}];
+  const sx=sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:s.xml()}));
+  files.push({name:"xl/styles.xml",data:stylesXml()}, ...sx);
+  return zip(files); }
+
+
+// ---- Excel ----
+XS.fills.melt=XS.fillXml.length; XS.fillXml.push('<fill><patternFill patternType="solid"><fgColor rgb="FFFFCC80"/></patternFill></fill>');
+XS.fills.pour=XS.fillXml.length; XS.fillXml.push('<fill><patternFill patternType="solid"><fgColor rgb="FFB39DDB"/></patternFill></fill>');
+const DELAYL={"":"",melt:"溶解工程",pour:"注湯工程"};
+function matL(m){ return m==="other"?"その他":(m||""); }
+function dataRows(){
+  const out=[["生産日","溶炉No","開始予定","開始時刻","材質","銑鉄(kg)","鋼鉄(kg)","ダライ粉(kg)","戻り材(kg)","加炭材(kg)","シリコン(kg)","C/Si追加","CE","C","Si","引張強度","出湯温度(℃)","出湯時刻","デマンド回数","判定","作業者","遅れ原因","開始→出湯(分)","成分TP採取","規格外項目","記録確認(監督者)"]];
+  state.rows.forEach((r,i)=>{ if(!rowHas(r)) return; const e=elapsed(r);
+    out.push([state.date,i+1,SCHED[i],r.st,matL(r.mat),r.sen,r.kou,r.dar,r.mod,r.kat,r.sil,r.add,r.ce,r.c,r.si,r.ten,r.temp,r.tap,r.dem,judgeOf(r),r.worker,DELAYL[r.delay||""],e==null?"":e,TP.has(i+1)?"○":"",CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),state.confirmBy]); });
+  return out;
+}
+function eventRows(){ const out=[["生産日","No","発生時刻","終了時刻","担当","異常/変化点内容","処置内容"]]; liveEvents().forEach((e,i)=>out.push([state.date,i+1,e.start,e.end,e.person,e.content,e.action])); return out; }
+function buildNippoSheet(){
+  const S=new Sheet("日報"); S.landscape=true; S.showGrid=false;
+  S.cols=[5,6,6,5,5,5,6,6,7,6,6,6,7,6,6,6,6,7,6,6,5,8,8,6];
+  const H=st({font:1,fill:"head",border:1,h:"center",wrap:true}), B=st({border:1,h:"center"}), NG=st({font:2,border:1,h:"center",fill:"ng"});
+  S.set(0,0,"溶解日報",st({font:3})); S.heights[0]=26;
+  S.merge(0,1,1,1,"生産日",H); S.merge(2,1,4,1,state.date,B); S.merge(5,1,6,1,"目標",H); S.merge(7,1,9,1,"45分/チャージ",st({font:2,border:1,h:"center"}));
+  S.merge(10,1,12,1,"記録確認(監督者)",st({font:2,fill:"ng",border:1,h:"center"})); S.merge(13,1,15,1,state.confirmBy,st({font:2,border:1,h:"center"}));
+  S.merge(16,1,23,1,"◯=成分TP採取 / 橙=遅れ(溶解工程) / 紫=遅れ(注湯工程) / 赤=規格外・NG",st({font:4}));
+  const r0=3;
+  S.merge(0,r0,2,r0,"生産予定",H); S.set(3,r0,"",H); S.merge(3,r0,5,r0,"材質",H); S.merge(6,r0,12,r0,"配合履歴 (kg)",H); S.merge(13,r0,19,r0,"製造条件",H); S.merge(20,r0,23,r0,"",H);
+  const h=["溶炉","開始予定","開始時刻","FC200","FC250","その他","銑鉄","鋼鉄","ダライ粉","戻り材","加炭材","シリコン","C/Si追加","CE","C","Si","引張強度","出湯温度","出湯時刻","デマンド回数","判定","作業者","遅れ原因","所要(分)"];
+  h.forEach((t,i)=>S.set(i,r0+1,t,H)); S.heights[r0+1]=30;
+  const tot={}; MIX.forEach(k=>tot[k]=0);
+  state.rows.forEach((r,i)=>{ const y=r0+2+i; MIX.forEach(k=>tot[k]+=num(r[k])||0);
+    const nf=r.delay? st({font:1,border:1,h:"center",fill:r.delay}) : st({font:TP.has(i+1)?2:1,border:1,h:"center"});
+    S.set(0,y,(TP.has(i+1)?"◯":"")+(i+1),nf); S.set(1,y,SCHED[i],B); S.set(2,y,r.st,B);
+    S.set(3,y,r.mat==="FC200"?"✓":"",B); S.set(4,y,r.mat==="FC250"?"✓":"",B); S.set(5,y,r.mat==="other"?"✓":"",B);
+    MIX.forEach((k,j)=>S.set(6+j,y,r[k],B)); S.set(12,y,r.add,B);
+    ["ce","c","si"].forEach((k,j)=>S.set(13+j,y,r[k],cls(r,k)==="ng"?NG:st({border:1,h:"center",fmt:"d2"})));
+    S.set(16,y,r.ten,B); S.set(17,y,r.temp,cls(r,"temp")==="ng"?NG:B); S.set(18,y,r.tap,B); S.set(19,y,r.dem,B);
+    const j=judgeOf(r); S.set(20,y,j,j==="NG"?NG:B); S.set(21,y,r.worker,B); S.set(22,y,DELAYL[r.delay||""],r.delay?st({border:1,h:"center",fill:r.delay}):B);
+    const e=elapsed(r); S.set(23,y,e==null?"":e,e!=null&&e>TARGET_MIN?st({border:1,h:"center",fill:"warn"}):B); });
+  let y=r0+2+N; S.merge(0,y,5,y,"累計 (kg)",H); MIX.forEach((k,j)=>S.set(6+j,y,tot[k]?Math.round(tot[k]*1000)/1000:"",st({font:1,border:1,h:"center",fill:"head"})));
+  y+=2; S.merge(0,y,23,y,"異常/変化点履歴",st({font:1,fill:"head",border:1})); y++;
+  S.merge(0,y,1,y,"発生",H); S.merge(2,y,3,y,"〜",H); S.merge(4,y,12,y,"異常/変化点内容",H); S.merge(13,y,20,y,"処置内容",H); S.merge(21,y,23,y,"担当",H); y++;
+  const W=st({border:1,wrap:true}); const LE=liveEvents(); (LE.length?LE:[{start:"",end:"",person:"",content:"",action:""}]).forEach(e=>{
+    S.merge(0,y,1,y,e.start,B); S.merge(2,y,3,y,e.end,B); S.merge(4,y,12,y,e.content,W); S.merge(13,y,20,y,e.action,W); S.merge(21,y,23,y,e.person,B); S.heights[y]=30; y++; });
+  return S;
+}
+function tableSheet(name,rows,widths){ const S=new Sheet(name); S.freeze=1; S.cols=widths; const H=st({font:1,fill:"head",border:1,h:"center",wrap:true});
+  rows.forEach((row,r)=>row.forEach((v,c)=>S.set(c,r,v,r===0?H:st({border:1})))); S.autoFilter="A1:"+ref(rows[0].length-1,Math.max(rows.length-1,0)); S.heights[0]=32; return S; }
+function buildXlsx(){ return workbook([buildNippoSheet(), tableSheet("データ",dataRows(),[11,6,8,8,7,8,8,9,8,8,9,9,6,6,6,8,9,8,8,6,10,9,9,8,10,10]), tableSheet("異常変化点",eventRows(),[11,5,9,9,10,50,50])]); }
+$("btnCsv").onclick=async()=>{
+  if(!state.rows.some(rowHas)&&!liveEvents().length){ toast("入力データがありません"); return; }
+  await Sync.flush();
+  const where=await writeFile("溶解日報_"+state.date.replace(/-/g,"")+".xlsx",buildXlsx());
+  if(where) toast("保存しました: "+where);
+};
+let dl=null;
+(async()=>{ try{ if(window.claude && window.claude.use){ dl=await window.claude.use("downloads"); if(dl){ const ds=$("dirSec"); if(ds) ds.hidden=true; } } }catch(e){} })();
+async function writeFile(name,blob){
+  if(dl){
+    try{ await dl.save({filename:name,data:blob}); return name; }
+    catch(e){ if(e&&e.code==="declined") return null; toast("この画面では保存できません ("+(e&&e.code||"error")+")"); return null; }
+  }
+  if(dirHandle){
+    try{
+      let p=await dirHandle.queryPermission({mode:"readwrite"});
+      if(p!=="granted") p=await dirHandle.requestPermission({mode:"readwrite"});
+      if(p==="granted"){
+        const fh=await dirHandle.getFileHandle(name,{create:true});
+        const w=await fh.createWritable(); await w.write(blob); await w.close();
+        return dirHandle.name+"\\"+name;
+      }
+    }catch(e){ console.warn(e); }
+  }
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  return "ダウンロード\\"+name;
+}
+
+// ---- スプレッドシート同期 ----
+const Sync=(function(){
+  const base=Object.assign({syncUrl:"",token:""},window.SUNA_CONFIG||{});
+  let cfg=Object.assign({},base,LS.get(APP+":cfg",{}));
+  let q=LS.get(APP+":queue",[]); let busy=false, timer=null, lastErr="";
+  const on=()=>!!cfg.syncUrl, persist=()=>LS.set(APP+":queue",q);
+  function build(type,ref){
+    const d=state.date, e=EQUIP; let u, raw;
+    if(type==="header"){ u=state.hu||Date.now(); raw={confirmBy:state.confirmBy}; }
+    else if(type==="row"){ const r=state.rows[ref]; u=r.u||Date.now(); raw=Object.assign({},r,{jOut:judgeOf(r),ngOut:CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),elapsed:elapsed(r),sched:SCHED[ref],tp:TP.has(ref+1)}); }
+    else { const ev=state.events.find(x=>x.id===ref); u=ev.u; raw=Object.assign({},ev); }
+    return {k:`${type}|${d}|${e}|${ref}`,op:{type,date:d,equip:e,ref:String(ref),u,raw}};
+  }
+  function queueSpec(spec,u){ if(!on()||VIEW) return; const it={k:"spec",op:{type:"spec",date:"_global",equip:EQUIP,ref:"spec",u,raw:spec}}; q=q.filter(x=>x.k!=="spec"); q.push(it); persist(); status(); clearTimeout(timer); timer=setTimeout(flush,600); }
+  function queue(type,ref){ if(!on()||VIEW) return; const it=build(type,ref); q=q.filter(x=>x.k!==it.k); q.push(it); persist(); status(); clearTimeout(timer); timer=setTimeout(flush,1200); }
+  async function call(params,body){ const url=cfg.syncUrl+(params?(cfg.syncUrl.includes("?")?"&":"?")+new URLSearchParams(params):"");
+    const res=await fetch(url,body?{method:"POST",body:JSON.stringify(body),redirect:"follow"}:{redirect:"follow"}); const j=await res.json(); if(!j.ok) throw new Error(j.error||"error"); return j; }
+  async function flush(){ if(!on()||busy||!q.length){ status(); return; } if(navigator.onLine===false){ status(); return; } busy=true;
+    try{ while(q.length){ const batch=q.slice(0,30); await call(null,{token:cfg.token,ops:batch.map(x=>x.op)});
+        const sent=new Map(batch.map(x=>[x.k,x.op.u])); q=q.filter(x=>!(sent.has(x.k)&&x.op.u===sent.get(x.k))); persist(); } lastErr=""; }
+    catch(e){ lastErr=String(e.message||e); console.warn("sync",e); } busy=false; status(); }
+  const pending=k=>q.some(x=>x.k===k);
+  async function pull(){
+    if(!on()||navigator.onLine===false) return; const d=state.date; let j;
+    try{ j=await call({action:"load",token:cfg.token,date:d,equip:EQUIP}); lastErr=""; }catch(err){ lastErr=String(err.message||err); status(); return; }
+    if(j.spec && !pending("spec")) applyServerSpec(j.spec.raw, j.spec.u);
+    if(state.date!==d) return; let changed=false, selChanged=false, evChanged=false;
+    (j.items||[]).forEach(it=>{ const k=`${it.type}|${d}|${EQUIP}|${it.ref}`; if(pending(k)) return; const raw=it.raw||{};
+      if(it.type==="header"){ if((it.u||0)>(state.hu||0)){ state.confirmBy=String(raw.confirmBy??""); state.hu=it.u; changed=true; renderHeader(); } }
+      else if(it.type==="row"){ const i=+it.ref; if(!(i>=0&&i<N)) return; if((it.u||0)>(state.rows[i].u||0)){ const r=Object.assign(blankRow(),raw,{u:it.u}); ["jOut","ngOut","elapsed","sched","tp","noro"].forEach(x=>delete r[x]); r.calc=r.calc||{}; state.rows[i]=r; changed=true; if(i===sel) selChanged=true; } }
+      else if(it.type==="event"){ const le=state.events.find(x=>x.id===it.ref); const ev=Object.assign({id:it.ref,start:"",end:"",person:"",content:"",action:""},raw,{u:it.u});
+        if(!le){ state.events.push(ev); changed=true; evChanged=true; } else if((it.u||0)>(le.u||0)){ Object.assign(le,ev); changed=true; evChanged=true; } } });
+    if(changed){ save(); renderChips(); renderTable(); const act=document.activeElement, inside=s=>act&&act.closest&&act.closest(s);
+      if(selChanged&&!inside("#entryCard")&&!$("dlgCalc").open) renderEntry(); if(evChanged&&!inside("#events")) renderEvents(); toast("他の端末の入力を読み込みました"); }
+    status();
+  }
+  function status(){ const b=$("syncStat"); if(!b) return; if(!on()){ b.hidden=true; return; } b.hidden=false; const n=q.length;
+    if(navigator.onLine===false){ b.className="sync off"; b.textContent=n?`オフライン (未送信 ${n}件)`:"オフライン"; }
+    else if(lastErr){ b.className="sync err"; b.textContent=n?`送信エラー (未送信 ${n}件)`:"接続エラー"; }
+    else if(n){ b.className="sync wait"; b.textContent=`送信中… ${n}件`; } else { b.className="sync ok"; b.textContent="同期済み ✓"; } }
+  async function test(){ if(!on()) return "送信先URLが未設定です"; try{ const j=await call({action:"ping",token:cfg.token}); return "接続OK ("+(j.sheet||"スプレッドシート")+")"; }catch(e){ return "接続できません: "+(e.message||e); } }
+  function setCfg(url,token){ const o={}; if(url) o.syncUrl=url; if(token) o.token=token; LS.set(APP+":cfg",o); cfg=Object.assign({},base,o); status(); }
+  async function list(month){ return call({action:"list",token:cfg.token,month}); }
+  window.addEventListener("online",()=>{ flush().then(pull); }); window.addEventListener("offline",status);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") flush().then(pull); });
+  setInterval(()=>{ if(document.visibilityState==="visible") flush().then(pull); },45000);
+  return {queue,queueSpec,flush,pull,status,test,setCfg,getCfg:()=>cfg,list,pendingCount:()=>q.length};
+})();
+$("syncStat").onclick=async()=>{ await Sync.flush(); await Sync.pull(); toast(Sync.pendingCount()?"未送信のデータがあります":"最新の状態です"); };
+$("btnCfgSave").onclick=()=>{ Sync.setCfg($("cfgUrl").value.trim(),$("cfgToken").value.trim()); $("cfgInfo").textContent="保存しました"; Sync.pull(); };
+$("btnCfgTest").onclick=async()=>{ $("cfgInfo").textContent="確認中…"; $("cfgInfo").textContent=await Sync.test(); };
+// ---- PWA ----
+(function(){
+  const standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  const httpOk = /^https?:$/.test(location.protocol);
+  let deferred=null;
+  if(httpOk && !standalone) $("btnInstall").hidden=VIEW;
+  window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferred=e; $("btnInstall").hidden=VIEW; });
+  window.addEventListener("appinstalled",()=>{ $("btnInstall").hidden=true; toast("ホーム画面に追加しました"); });
+  $("btnInstall").onclick=async()=>{
+    if(deferred){ deferred.prompt(); try{ await deferred.userChoice; }catch(e){} deferred=null; }
+    else $("dlgInstall").showModal();
+  };
+  if(httpOk && "serviceWorker" in navigator){
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register("sw.js").catch(e=>console.warn("SW",e));
+    navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(had) toast("アプリを最新版に更新しました"); });
+  }
+  const net=()=>{ if(!navigator.onLine) toast("オフラインです (入力・Excel保存はそのまま使えます)"); };
+  window.addEventListener("offline",net);
+})();
+
+// ---- init ----
+load(todayStr()); sel=nowSlot();
+renderAll();
+if(VIEW){ $("viewBadge").hidden=false; document.title="溶解日報（閲覧用）"; document.querySelectorAll("#entryCard input,.card input").forEach(el=>el.readOnly=true); }
+Sync.status(); Sync.flush().then(()=>Sync.pull());
+})();
+</script>
+</body>
+</html>
