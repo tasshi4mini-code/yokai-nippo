@@ -192,6 +192,25 @@ body.view #viewNote{display:block!important}
 .spectbl th,.spectbl td{border:1px solid var(--line);padding:4px;text-align:center}
 .spectbl input{min-height:40px;font-size:16px;padding:4px 6px;text-align:center}
 input::placeholder{color:#a8b0bd}
+.drgrid{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:12px;align-items:start}
+.drmain{border:2px solid #c98b5e;border-radius:10px;padding:10px;background:#fff8f2;text-align:center}
+.drname{font-size:20px;font-weight:bold}.drkg{font-size:26px;font-weight:bold;color:#7a2e00}
+.drsub{border:1px dashed var(--line);border-radius:10px;padding:10px;display:grid;gap:8px}
+#drTypes button{min-width:80px}
+#drTypes button.on .id{color:#ffe0cc}
+#drTypes button.on{background:#7a2e00;color:#fff;border-color:#7a2e00}
+.drcnt{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.drmax{font-size:14px;color:var(--sub)}.drmax.full{color:#b00020;font-weight:bold}
+#drSum{margin-top:8px;font-size:14px}
+.dredit td input{min-height:38px;font-size:15px}
+@media (max-width:700px){ .drgrid{grid-template-columns:1fr} }
+.drcntv{font-size:15px;font-weight:bold;color:#7a2e00}
+.drmain .f{text-align:left;margin-top:6px}
+.condspec{color:#d50000;font-weight:bold;font-size:15px;margin-left:8px}
+.calcwarn{color:#d50000;font-weight:bold;min-height:1.2em;margin:4px 0}
+.spectbl input{min-width:56px}
+.drwarn{color:#d50000;font-weight:bold;font-size:15px;margin-top:4px}
+.drmain.over{border-color:#d50000;background:#ffebee}
 </style>
 </head>
 <body>
@@ -218,8 +237,8 @@ input::placeholder{color:#a8b0bd}
       <label class="f sup">記録確認（監督者記入）<span class="id">Konfirmasi (pengawas)</span><input id="confirmBy" placeholder="監督者記入"></label>
       <div class="notice"><span style="color:#e53935;font-weight:bold;font-size:18px">◯</span> の番号 = <b>成分TP 採取タイミング</b><br><span class="id">Waktu pengambilan sampel bahan</span></div>
     </div>
-    <div class="notice" style="margin-top:10px">FC200/FC250の狙い値に属さない材質の場合は「その他」を選ぶこと（P02生産時など）<br>
-      <span class="id">Jika bahan tidak termasuk nilai target FC200/FC250, pilih "Lainnya" (misalnya saat produksi P02)</span></div>
+    <div class="notice" style="margin-top:10px">FC200/FC250の狙い値に属さない材質の場合は「その他H」「その他L」を選ぶこと（P02生産時など）<br>
+      <span class="id">Jika bahan tidak termasuk nilai target FC200/FC250, pilih "Lainnya H / L" (misalnya saat produksi P02)</span></div>
     <div class="spec" id="specLine"></div>
     <div class="docinfo">
       <div>作成日 <b>2009/08/05</b></div><div>改定日 <b>2019/03/11・2022/11/09</b></div>
@@ -253,7 +272,7 @@ input::placeholder{color:#a8b0bd}
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
         <label class="f">開始時刻 <span class="id">Waktu mulai</span><span class="tcell"><input type="time" data-k="st"><button data-now="st">今</button></span></label>
         <div class="f"><span class="small">材質 <span class="id">Bahan</span></span>
-          <div class="mat" id="matBtns"><button data-mat="FC200">FC200</button><button data-mat="FC250">FC250</button><button data-mat="other">その他<br><span class="id">Lainnya</span></button></div></div>
+          <div class="mat" id="matBtns"><button data-mat="FC200">FC200</button><button data-mat="FC250">FC250</button><button data-mat="otherH">その他H<br><span class="id">Lainnya H</span></button><button data-mat="otherL">その他L<br><span class="id">Lainnya L</span></button></div></div>
       </div>
     </div>
 
@@ -262,17 +281,32 @@ input::placeholder{color:#a8b0bd}
       <div class="grid g-mix">
         <label class="f">銑鉄 <span class="id">SENTETSU</span><input class="calc" data-k="sen" data-calc="1" readonly inputmode="none"></label>
         <label class="f">鋼鉄 <span class="id">SINDAN BARA</span><input class="calc" data-k="kou" data-calc="1" readonly inputmode="none"></label>
-        <label class="f">ダライ粉 <span class="id">DARAIKO</span><input class="calc" data-k="dar" data-calc="1" readonly inputmode="none"></label>
         <label class="f">戻り材 <span class="id">SEKI</span><input class="calc" data-k="mod" data-calc="1" readonly inputmode="none"></label>
         <label class="f">加炭材 <span class="id">karbon</span><input class="calc" data-k="kat" data-calc="1" readonly inputmode="none"></label>
         <label class="f">シリコン <span class="id">silikon</span><input class="calc" data-k="sil" data-calc="1" readonly inputmode="none"></label>
-        <label class="f">C/Si追加 <span class="id">Tambahkan</span><input data-k="add" placeholder="例: Si0.5"></label>
+        <label class="f">C追加 <span class="id">Tambah C</span><input data-k="addC" inputmode="decimal"></label>
+        <label class="f">Si追加 <span class="id">Tambah Si</span><input data-k="addSi" inputmode="decimal"></label>
+        <label class="f">スクラップ追加 (kg) <span class="id">Tambah skrap</span><input class="calc" data-k="addSc" data-calc="1" readonly inputmode="none" placeholder="タップで電卓"></label>
+      </div>
+      <div class="darai">
+        <div class="t" style="margin-top:12px">ダライ粉 <span class="id">DARAIKO</span> — 合計 <b id="drTotal">－</b> kg <span class="id">(岡本 ＋ 2種類目)</span></div>
+        <div class="drgrid">
+          <div class="drmain"><div class="small">メイン (固定) <span class="id">Utama</span></div><div class="drname" id="drMainName">岡本</div>
+            <label class="f">重量 (kg) <span class="id">Berat</span><input class="calc" data-k="drM" data-calc="1" readonly inputmode="none" placeholder="タップで電卓"></label>
+            <div class="drcntv" id="drMainCnt"></div><div class="drwarn" id="drMainWarn"></div></div>
+          <div class="drsub">
+            <div class="small">2種類目 <span class="id">Jenis kedua</span></div>
+            <div class="seg" id="drTypes"></div>
+            <label class="f"><span id="drSubLbl">2種類目の重量 (kg)</span> <span class="id">Berat (kg)</span><input class="calc" data-k="drKg" data-calc="1" readonly inputmode="none"></label>
+            <div class="drcnt"><span class="drcntv" id="drSubCnt"></span><span id="drMax" class="drmax"></span></div>
+          </div>
+        </div>
       </div>
       <div class="small" id="mixTotal" style="margin-top:8px"></div>
     </div>
 
     <div class="sec">
-      <div class="t">製造条件 <span class="id">Kondisi produksi</span></div>
+      <div class="t">製造条件 <span class="id">Kondisi produksi</span> <span id="condSpec" class="condspec"></span></div>
       <div class="grid g-cond">
         <label class="f">CE <span class="id">komponen</span><input data-k="ce" inputmode="decimal"><span class="hint" data-h="ce"></span></label>
         <label class="f">C<input data-k="c" inputmode="decimal"><span class="hint" data-h="c"></span></label>
@@ -311,8 +345,8 @@ input::placeholder{color:#a8b0bd}
     <div class="tbl-wrap">
       <table style="min-width:1300px">
         <thead>
-          <tr><th rowspan="2">溶炉</th><th rowspan="2">開始<br>予定</th><th rowspan="2">開始<br>時刻</th><th rowspan="2">材質</th><th colspan="7">配合履歴 (kg)</th><th colspan="7">製造条件</th><th rowspan="2">所要<br>(分)</th><th rowspan="2">判定</th><th rowspan="2">作業者</th></tr>
-          <tr><th>銑鉄</th><th>鋼鉄</th><th>ダライ粉</th><th>戻り材</th><th>加炭材</th><th>シリコン</th><th>C/Si追加</th><th>CE</th><th>C</th><th>Si</th><th>引張強度</th><th>出湯温度</th><th>出湯時刻</th><th>デマンド</th></tr>
+          <tr><th rowspan="2">溶炉</th><th rowspan="2">開始<br>予定</th><th rowspan="2">開始<br>時刻</th><th rowspan="2">材質</th><th colspan="9">配合履歴 (kg)</th><th colspan="7">製造条件</th><th rowspan="2">所要<br>(分)</th><th rowspan="2">判定</th><th rowspan="2">作業者</th></tr>
+          <tr><th>銑鉄</th><th>鋼鉄</th><th>ダライ粉<br><span class="id">岡本 / 2種類目</span></th><th>戻り材</th><th>加炭材</th><th>シリコン</th><th>C追加</th><th>Si追加</th><th>スクラップ<br>追加</th><th>CE</th><th>C</th><th>Si</th><th>引張強度</th><th>出湯温度</th><th>出湯時刻</th><th>デマンド</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -334,6 +368,7 @@ input::placeholder{color:#a8b0bd}
   <div class="small">数字を入れて「＋」で追加、「確定」で合計を入力します。<span class="id">Masukkan angka, tekan + untuk menambah, Tetapkan untuk memasukkan total.</span></div>
   <div class="calc-list" id="calcList"></div>
   <div class="calc-disp" id="calcDisp">0</div>
+  <div class="calcwarn" id="calcWarn"></div>
   <div class="calc-total">累計 <span class="id">Total</span>: <b id="calcTotal">0</b> kg</div>
   <div class="keys">
     <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button><button class="op" data-key="bs">⌫</button>
@@ -352,7 +387,9 @@ input::placeholder{color:#a8b0bd}
     <button id="btnSpecUnlock">編集する</button>
   </div>
   <div id="specEdit" style="margin-top:8px"></div>
-  <div id="specBtns" style="display:none;gap:8px;margin-top:8px;justify-content:flex-end"><button class="pri" id="btnSpecSave">規格を保存（全端末）</button></div>
+  <div class="t" style="font-weight:bold;margin:14px 0 6px">ダライ粉の設定 <span class="id">Pengaturan DARAIKO</span></div>
+  <div id="drEdit"></div>
+  <div id="specBtns" style="display:none;gap:8px;margin-top:8px;justify-content:flex-end"><button class="pri" id="btnSpecSave">設定を保存（全端末）</button></div>
   <div class="small" id="specInfo" style="margin-top:6px"></div>
   <hr>
   <div id="dirSec"><div class="t" style="font-weight:bold;margin:8px 0">Excelファイルの保存先フォルダ</div>
@@ -407,8 +444,12 @@ if(VIEW) document.body.classList.add("view");
 const SCHED=Array.from({length:N},(_,i)=>{ const m=8*60+45*i; return `${Math.floor(m/60)%24}:${String(m%60).padStart(2,"0")}`; });
 const TP=new Set([1,4,8,12,16,20,24,28]);
 const MIX=["sen","kou","dar","mod","kat","sil"];
-const MIXL={sen:"銑鉄 SENTETSU",kou:"鋼鉄 SINDAN BARA",dar:"ダライ粉 DARAIKO",mod:"戻り材 SEKI",kat:"加炭材 karbon",sil:"シリコン silikon"};
-const CHK=["ce","c","si","temp"], CHKL={ce:"CE",c:"C",si:"Si",temp:"出湯温度"};
+const MIXL={addSc:"スクラップ追加 Tambah skrap",drKg:"ダライ粉 2種類目",drM:"ダライ粉 岡本",sen:"銑鉄 SENTETSU",kou:"鋼鉄 SINDAN BARA",dar:"ダライ粉 DARAIKO",mod:"戻り材 SEKI",kat:"加炭材 karbon",sil:"シリコン silikon"};
+const CHK=["c","si","temp"], CHKL={ce:"CE",c:"C",si:"Si",temp:"出湯温度"};
+const MATS=[["FC200","FC200",""],["FC250","FC250",""],["otherH","その他H","Lainnya H"],["otherL","その他L","Lainnya L"]];
+function matL(m){ if(m==="other") return "その他"; const x=MATS.find(a=>a[0]===m); return x?x[1]:(m||""); }
+const DEF_DR={main:"岡本",types:[{name:"T4",maxKg:375},{name:"大内",maxKg:150},{name:"エヌテック",maxKg:375},{name:"愛知材",maxKg:225}]};
+function DR(){ const d=SPEC.darai||{}; const ok=d.types&&d.types.length&&d.types.every(t=>"maxKg" in t); return {main:d.main||DEF_DR.main,types:ok?d.types:DEF_DR.types}; }
 const TARGET_MIN=45;
 const LS={ get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
   set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true;}catch(e){return false;} },
@@ -424,7 +465,7 @@ let state, sel=0;
 function todayStr(){ const d=new Date(); if(d.getHours()<8) d.setDate(d.getDate()-1); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
 function nowSlot(){ const d=new Date(); let m=d.getHours()*60+d.getMinutes()-8*60; if(m<0) m+=1440; return Math.min(N-1,Math.floor(m/45)); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
-function blankRow(){ return {st:"",mat:"",sen:"",kou:"",dar:"",mod:"",kat:"",sil:"",add:"",calc:{},ce:"",c:"",si:"",ten:"",temp:"",tap:"",dem:"",judge:"",jm:false,worker:"",delay:"",u:0}; }
+function blankRow(){ return {st:"",mat:"",sen:"",kou:"",dar:"",mod:"",kat:"",sil:"",add:"",addC:"",addSi:"",addSc:"",drM:"",drType:"",drKg:"",calc:{},ce:"",c:"",si:"",ten:"",temp:"",tap:"",dem:"",judge:"",jm:false,worker:"",delay:"",u:0}; }
 function blankState(date){ return {date,equip:EQUIP,confirmBy:"",hu:0,rows:Array.from({length:N},blankRow),events:[]}; }
 function key(){ return APP+":day:"+state.date; }
 function save(){ state.updated=new Date().toISOString(); LS.set(key(),state); }
@@ -440,13 +481,23 @@ function specOf(r,k){ const m=SPEC[r.mat]; if(!m) return null; const s=m[k]; ret
 function cls(r,k){ const n=num(r[k]), s=specOf(r,k); if(n==null||!s) return ""; return (n<s.min||n>s.max)?"ng":"ok"; }
 function autoJ(r){ let any=false, ng=false; CHK.forEach(k=>{ const c=cls(r,k); if(c) any=true; if(c==="ng") ng=true; }); return ng?"NG":(any?"OK":""); }
 function judgeOf(r){ return r.jm? r.judge : autoJ(r); }
-function rowHas(r){ return ["st","mat","sen","kou","dar","mod","kat","sil","add","ce","c","si","ten","temp","tap","dem","worker","delay"].some(k=>(r[k]||"")!=="") || r.jm; }
+function rowHas(r){ return ["st","mat","sen","kou","dar","drM","drType","drKg","mod","kat","sil","add","addC","addSi","addSc","ce","c","si","ten","temp","tap","dem","worker","delay"].some(k=>(r[k]||"")!=="") || r.jm; }
 function tmin(t){ if(!t) return null; const m=/^(\d{1,2}):(\d{2})/.exec(t); return m? (+m[1])*60+(+m[2]) : null; }
 function elapsed(r){ const a=tmin(r.st), b=tmin(r.tap); if(a==null||b==null) return null; let d=b-a; if(d<0) d+=1440; return d; }
 function fmtNum(n){ return Math.round(n*1000)/1000+""; }
+// ダライ粉: 岡本(drM) と 2種類目(drKg) を電卓で入力。合計 = 岡本 + 2種類目。回数 = 電卓で足した回数
+function cntOf(r,k){ if((r[k]||"")==="") return 0; const e=r.calc&&r.calc[k]; return e? e.split("+").length : 1; }
+function drUsed(r){ return !!(r.drM||r.drKg||r.drType); }
+function drMainKg(r){ return num(r.drM); }
+function drOtherKg(r){ return r.drType? num(r.drKg) : null; }
+function drSync(r){ if(!drUsed(r)) return; const m=drMainKg(r), o=drOtherKg(r); r.dar=(m==null&&o==null)?"":fmtNum((m||0)+(o||0)); }
+function alertOver(t,mx,v){ toast(`${t} が上限 ${mx}kg を ${fmtNum(v-mx)}kg 超えています。岡本を減らしてください`); }
+function drMax(name){ const t=DR().types.find(x=>x.name===name); return t?num(t.maxKg):null; }
+function drText(r){ if(!drUsed(r)) return r.dar||""; const m=drMainKg(r), o=drOtherKg(r);
+  return `${DR().main} ${m==null?"－":fmtNum(m)}${cntOf(r,"drM")?`(${cntOf(r,"drM")}回)`:""}`+(r.drType?` / ${r.drType} ${o==null?"－":fmtNum(o)}${cntOf(r,"drKg")?`(${cntOf(r,"drKg")}回)`:""}`:""); }
 function specText(){
   const one=(m)=>{ const s=SPEC[m]; if(!s) return "未設定"; const parts=CHK.map(k=>s[k]&&s[k].min!=null&&s[k].max!=null?`${CHKL[k]} ${s[k].min}〜${s[k].max}${k==="temp"?"℃":""}`:null).filter(Boolean); return parts.length?parts.join(" / "):"未設定"; };
-  return `<span><b>FC200 規格</b> ${one("FC200")}</span><span><b>FC250 規格</b> ${one("FC250")}</span><span class="id">その他は自動判定なし (Lainnya: tanpa penilaian otomatis)</span>`;
+  return MATS.map(([m,l])=>`<span><b>${l} 規格</b> ${one(m)}</span>`).join("");
 }
 
 // ---- 描画 ----
@@ -457,6 +508,18 @@ function renderChips(){
 }
 function renderHeader(){ $("date").value=state.date; $("confirmBy").value=state.confirmBy; $("specLine").innerHTML=specText(); }
 const PREVK={ce:"",c:"",si:"",kat:" kg",sil:" kg"};
+function renderDarai(){ const r=state.rows[sel], d=DR();
+  $("drTotal").textContent=r.dar?fmtNum(num(r.dar)):"－"; $("drMainName").textContent=d.main;
+  const mc=cntOf(r,"drM"); $("drMainCnt").textContent=mc?`投入 ${mc}回 / ${mc} kali`:"";
+  $("drTypes").innerHTML=[{name:""}].concat(d.types).map(t=>`<button data-dt="${esc(t.name)}" class="${(r.drType||"")===t.name?"on":""}">${t.name?esc(t.name)+`<br><span class="id">上限${t.maxKg}kg</span>`:"なし<br><span class=\"id\">Tidak ada</span>"}</button>`).join("")+(r.drType&&!d.types.some(t=>t.name===r.drType)?`<button class="on" data-dt="${esc(r.drType)}">${esc(r.drType)}</button>`:"");
+  const o=drOtherKg(r), mx=drMax(r.drType), sc=cntOf(r,"drKg");
+  $("drSubLbl").textContent=r.drType?`${r.drType} の重量 (kg)`:"2種類目の重量 (kg)";
+  $("drSubCnt").textContent=r.drType&&sc?`投入 ${sc}回 / ${sc} kali`:"";
+  const over=mx!=null&&o!=null&&o>mx;
+  $("drMainWarn").textContent=over?`⚠ 岡本を ${fmtNum(o-mx)}kg 減らしてください`:""; document.querySelector(".drmain").classList.toggle("over",over);
+  $("drMax").textContent = r.drType ? (mx!=null?(over?`⚠ 上限 ${mx}kg を ${fmtNum(o-mx)}kg 超えています。岡本を減らしてください / Kurangi Okamoto`:`上限 ${mx}kg（残り ${fmtNum(mx-(o||0))}kg）`):"") : "2種類目を選んでください / Pilih jenis"; $("drMax").className="drmax"+(over||(mx!=null&&o!=null&&o>=mx)?" full":"");
+  const kgInp=document.querySelector('#entryCard input[data-k="drKg"]'); kgInp.disabled=!r.drType; kgInp.placeholder=r.drType?"タップで電卓":"－";
+}
 // 前のチャージ(同じ日のより前の番号)で入力された値。なければ前日以前(この端末)の最後の値
 function prevVal(i,k){ for(let j=i-1;j>=0;j--){ const v=state.rows[j][k]; if(v) return v; }
   const ks=LS.keys().filter(x=>x.startsWith(APP+":day:")).map(x=>x.slice(APP.length+5)).filter(d=>d<state.date).sort().reverse();
@@ -469,6 +532,7 @@ function renderEntry(){
     if(k in PREVK){ const pv=prevVal(sel,k); inp.placeholder = pv ? `前回 ${pv}${PREVK[k]}` : (k==="kat"||k==="sil"?"タップで電卓":""); }
     if(k==="worker"&&!r.worker){ const p=sel>0?state.rows[sel-1].worker:""; inp.placeholder=p?"前回 "+p:"氏名 / nama"; } });
   document.querySelectorAll("#matBtns button").forEach(b=>b.classList.toggle("on",b.dataset.mat===r.mat));
+  renderDarai();
   updateMarks();
 }
 function updateMarks(){
@@ -478,7 +542,9 @@ function updateMarks(){
   const tot=MIX.reduce((a,k)=>a+(num(r[k])||0),0); $("mixTotal").textContent= tot? `このチャージの配合合計 Total: ${fmtNum(tot)} kg` : "";
   const j=judgeOf(r); $("judgeView").textContent=j||"－"; $("judgeView").style.color=j==="NG"?"var(--ng-ink)":j==="OK"?"var(--ok-ink)":"var(--sub)";
   document.querySelectorAll("[data-j]").forEach(b=>{ const v=b.dataset.j; b.className = (v==="auto"&&!r.jm)?"on-none":(r.jm&&r.judge===v?(v==="OK"?"on-ok":"on-ng"):""); });
-  $("judgeNote").textContent = r.jm? `手動 (自動判定: ${autoJ(r)||"－"})` : (r.mat==="other"?"その他：自動判定なし。OK/NGを選んでください":"溶湯成分・出湯温度の規格で自動判定");
+  $("judgeNote").textContent = r.jm? `手動 (自動判定: ${autoJ(r)||"－"})` : (r.mat&&!CHK.some(k=>specOf(r,k))?`${matL(r.mat)}：規格が未設定のため自動判定なし（設定画面で入力できます）`:"C・Si・出湯温度の規格で自動判定");
+  { const sp=["c","si"].map(k=>{ const s=specOf(r,k); return s?`${CHKL[k]} ${s.min}〜${s.max}`:null; }).filter(Boolean);
+    $("condSpec").textContent = r.mat ? (sp.length?`規格(${matL(r.mat)}) ${sp.join("　")}`:`規格(${matL(r.mat)}) 未設定`) : "材質を選ぶと規格を表示"; }
   document.querySelectorAll("#delayBtns button").forEach(b=>{ const v=b.dataset.d; b.className = r.delay===v ? (v===""?"on-none":"on-"+v) : ""; });
   const e=elapsed(r); const el=$("elapsed"); el.hidden=e==null; if(e!=null){ el.textContent=`開始→出湯 ${e}分 (目標${TARGET_MIN}分)`; el.className="elapsed"+(e>TARGET_MIN?" late":""); }
   $("bigNo").className="bigno no "+(r.delay||"");
@@ -487,12 +553,17 @@ function renderTable(){
   const tot={}; MIX.forEach(k=>tot[k]=0);
   const rows=state.rows.map((r,i)=>{ MIX.forEach(k=>tot[k]+=num(r[k])||0);
     const j=judgeOf(r), e=elapsed(r), c=k=>`<td class="${cls(r,k)}">${esc(r[k])}</td>`;
-    const mat=r.mat==="other"?"その他":r.mat;
+    const mat=matL(r.mat);
     return `<tr data-i="${i}" class="${i===sel?"sel":""}"><td class="no ${r.delay||""} ${TP.has(i+1)?"tpc":""}"><b>${i+1}</b></td><td>${SCHED[i]}</td><td>${esc(r.st)}</td><td>${esc(mat)}</td>`+
-      MIX.map(k=>`<td>${esc(r[k])}</td>`).join("")+`<td>${esc(r.add)}</td>${c("ce")}${c("c")}${c("si")}<td>${esc(r.ten)}</td>${c("temp")}<td>${esc(r.tap)}</td><td>${esc(r.dem)}</td>`+
+      MIX.map(k=>k==="dar"?`<td style="white-space:nowrap;font-size:12px">${esc(drText(r))}</td>`:`<td>${esc(r[k])}</td>`).join("")+`<td>${esc(r.addC||r.add)}</td><td>${esc(r.addSi)}</td><td>${esc(r.addSc)}</td>${c("ce")}${c("c")}${c("si")}<td>${esc(r.ten)}</td>${c("temp")}<td>${esc(r.tap)}</td><td>${esc(r.dem)}</td>`+
       `<td class="${e!=null&&e>TARGET_MIN?"warn":""}">${e==null?"":e}</td><td class="${j==="NG"?"jNG":""}">${j}</td><td>${esc(r.worker)}</td></tr>`; }).join("");
-  $("tbody").innerHTML=rows+`<tr class="sum"><td colspan="4">累計 (kg)<br><span class="id">Total</span></td>`+MIX.map(k=>`<td>${tot[k]?fmtNum(tot[k]):""}</td>`).join("")+`<td colspan="11"></td></tr>`;
+  const ds=drSummary(), tsc=state.rows.reduce((a,r)=>a+(num(r.addSc)||0),0);
+  $("tbody").innerHTML=rows+`<tr class="sum"><td colspan="4">累計 (kg)<br><span class="id">Total</span></td>`+MIX.map(k=>`<td>${tot[k]?fmtNum(tot[k]):""}</td>`).join("")+`<td></td><td></td><td>${tsc?fmtNum(tsc):""}</td><td colspan="10"></td></tr>`+
+    (ds.length?`<tr class="sum"><td colspan="4">ダライ粉内訳<br><span class="id">Rincian DARAIKO</span></td><td colspan="20" style="text-align:left">${ds.map(x=>`<b>${esc(x.name)}</b> ${fmtNum(x.kg)} kg`+(x.cnt?` (${x.cnt}回)`:"")).join("　／　")}</td></tr>`:"");
 }
+function drSummary(){ const d=DR(), m={}; const add=(n,kg,c)=>{ m[n]=m[n]||{name:n,kg:0,cnt:0}; m[n].kg+=kg; m[n].cnt+=c; };
+  state.rows.forEach(r=>{ if(!drUsed(r)) return; if(r.drM) add(d.main,drMainKg(r)||0,cntOf(r,"drM")); if(r.drType&&r.drKg) add(r.drType,drOtherKg(r)||0,cntOf(r,"drKg")); });
+  return Object.values(m).filter(x=>x.kg||x.cnt); }
 function renderEvents(){
   if(!liveEvents().length){ $("events").innerHTML='<div class="small" style="margin-bottom:10px">記録なし</div>'; return; }
   $("events").innerHTML=state.events.map((e,i)=>e.del?"":`
@@ -530,6 +601,10 @@ document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{
 document.querySelectorAll("[data-now]").forEach(b=>b.addEventListener("click",e=>{ e.preventDefault(); if(VIEW) return; const k=b.dataset.now; state.rows[sel][k]=nowHM(); document.querySelector(`#entryCard input[data-k="${k}"]`).value=state.rows[sel][k]; touchRow(sel); refreshLight(); }));
 $("matBtns").addEventListener("click",e=>{ const b=e.target.closest("[data-mat]"); if(!b||VIEW) return; const r=state.rows[sel]; r.mat = r.mat===b.dataset.mat ? "" : b.dataset.mat; touchRow(sel); renderEntry(); refreshLight(); });
 document.querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{ if(VIEW) return; const r=state.rows[sel], v=b.dataset.j; if(v==="auto"){ r.jm=false; r.judge=""; } else { r.jm=true; r.judge=v; } touchRow(sel); refreshLight(); });
+$("drTypes").addEventListener("click",e=>{ const b=e.target.closest("[data-dt]"); if(!b||VIEW) return; const r=state.rows[sel]; const t=b.dataset.dt;
+  r.drType=t; if(!t){ r.drKg=""; if(r.calc) delete r.calc.drKg; } drSync(r);
+  const mx=drMax(t), o=drOtherKg(r); if(mx!=null&&o!=null&&o>mx) toast(`${t}の上限は${mx}kgです`);
+  touchRow(sel); renderDarai(); refreshLight(); });
 $("delayBtns").addEventListener("click",e=>{ const b=e.target.closest("[data-d]"); if(!b||VIEW) return; state.rows[sel].delay=b.dataset.d; touchRow(sel); refreshLight(); });
 $("btnClearRow").onclick=async()=>{ if(await askConfirm("No."+(sel+1)+" の入力内容をクリアしますか?")){ state.rows[sel]=blankRow(); touchRow(sel); renderEntry(); refreshLight(); } };
 $("btnNext").onclick=()=>{ const r=state.rows[sel]; if(!r.worker&&sel>0&&rowHas(r)&&state.rows[sel-1].worker){ r.worker=state.rows[sel-1].worker; touchRow(sel); } selectSlot(sel+1); window.scrollTo({top:$("entryCard").offsetTop-70,behavior:"smooth"}); };
@@ -544,10 +619,12 @@ $("date").addEventListener("change",()=>{ const d=$("date").value; if(!d) return
 let calc={k:null,list:[],cur:""};
 function calcTotal(){ return calc.list.reduce((a,b)=>a+b,0)+(num(calc.cur)||0); }
 function renderCalc(){ $("calcList").innerHTML=calc.list.length?calc.list.map((v,i)=>`<span data-ci="${i}" title="タップで削除">${fmtNum(v)} ✕</span>`).join(""):'<span class="id" style="background:none;cursor:default">まだ追加なし / Belum ada</span>';
-  $("calcDisp").textContent=calc.cur||"0"; $("calcTotal").textContent=fmtNum(calcTotal()); }
-function openCalc(k){ if(VIEW) return; const r=state.rows[sel]; calc.k=k; const expr=(r.calc&&r.calc[k])||"";
+  $("calcDisp").textContent=calc.cur||"0"; $("calcTotal").textContent=fmtNum(calcTotal());
+  const n=calc.list.length+(num(calc.cur)!=null?1:0), mx=calc.k==="drKg"?drMax(state.rows[sel].drType):null, tt=calcTotal();
+  $("calcWarn").textContent = (mx!=null&&tt>mx)? `⚠ 上限 ${mx}kg を ${fmtNum(tt-mx)}kg 超えています（${fmtNum(tt)}kg）。岡本を減らしてください / Kurangi Okamoto` : (n?`${n}回 / ${n} kali`:""); $("calcWarn").style.color=(mx!=null&&tt>mx)?"#d50000":"var(--sub)"; }
+function openCalc(k){ if(VIEW) return; const r=state.rows[sel]; if(k==="drKg"&&!r.drType){ toast("先に2種類目のダライ粉を選んでください"); return; } calc.k=k; const expr=(r.calc&&r.calc[k])||"";
   calc.list = expr ? expr.split("+").map(num).filter(v=>v!=null) : (num(r[k])!=null?[num(r[k])]:[]); calc.cur="";
-  $("calcTitle").textContent=`No.${sel+1}　${MIXL[k]} (kg)`; renderCalc(); $("dlgCalc").showModal(); }
+  $("calcTitle").textContent=`No.${sel+1}　${k==="drKg"?"ダライ粉 "+(r.drType||"2種類目")+(drMax(r.drType)!=null?`（上限 ${drMax(r.drType)}kg）`:""):k==="drM"?"ダライ粉 "+DR().main:MIXL[k]} (kg)`; renderCalc(); $("dlgCalc").showModal(); }
 document.querySelectorAll("input[data-calc]").forEach(inp=>inp.addEventListener("click",()=>openCalc(inp.dataset.k)));
 $("calcList").addEventListener("click",e=>{ const s=e.target.closest("[data-ci]"); if(!s) return; calc.list.splice(+s.dataset.ci,1); renderCalc(); });
 document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e.target.closest("[data-key]"); if(!b) return; const k=b.dataset.key;
@@ -557,32 +634,47 @@ document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e
   else if(k==="clr"){ calc.cur=""; calc.list=[]; }
   else if(k==="plus"){ const v=num(calc.cur); if(v!=null){ calc.list.push(v); calc.cur=""; } }
   else if(k==="cancel"){ $("dlgCalc").close(); return; }
-  else if(k==="ok"){ const v=num(calc.cur); if(v!=null) calc.list.push(v); const r=state.rows[sel]; const tot=calc.list.reduce((a,b)=>a+b,0);
+  else if(k==="ok"){ const r=state.rows[sel]; const overMx=calc.k==="drKg"?drMax(r.drType):null, overT=calcTotal();
+    const v=num(calc.cur); if(v!=null) calc.list.push(v); const tot=calc.list.reduce((a,b)=>a+b,0);
     r[calc.k]=calc.list.length?fmtNum(tot):""; r.calc=r.calc||{}; r.calc[calc.k]=calc.list.length>1?calc.list.map(fmtNum).join("+"):"";
+    if(calc.k==="drKg"||calc.k==="drM") drSync(r);
+    if(overMx!=null&&overT>overMx) setTimeout(()=>alertOver(r.drType,overMx,overT),50);
     $("dlgCalc").close(); touchRow(sel); renderEntry(); refreshLight(); return; }
   renderCalc(); });
 document.addEventListener("keydown",e=>{ if(!$("dlgCalc").open) return; const map={"Enter":"ok","Backspace":"bs","+":"plus","Escape":"cancel"}; const k=map[e.key]||(/^[0-9.]$/.test(e.key)?e.key:null); if(!k) return; e.preventDefault(); const b=document.querySelector(`#dlgCalc [data-key="${k}"]`); if(b) b.click(); });
 
 // ---- 設定 (製造条件の規格) ----
-const SPECK=[["ce","CE",""],["c","C",""],["si","Si",""],["temp","出湯温度","℃"]];
+const SPECK=[["c","C",""],["si","Si",""],["temp","出湯温度","℃"]];
 let specUnlocked=false;
 function renderSpecEdit(){
   const v=x=>x==null?"":x, dis=specUnlocked?"":"disabled";
-  $("specEdit").innerHTML=`<table class="spectbl"><thead><tr><th>項目</th><th colspan="2">FC200<br><span class="id">下限 / 上限</span></th><th colspan="2">FC250<br><span class="id">下限 / 上限</span></th></tr></thead><tbody>`+
-    SPECK.map(([k,l,u])=>`<tr><td><b>${l}</b>${u?`<br><span class="id">${u}</span>`:""}</td>`+["FC200","FC250"].map(m=>{ const s=(SPEC[m]||{})[k]||{};
+  $("specEdit").innerHTML=`<table class="spectbl"><thead><tr><th rowspan="2">材質</th>`+SPECK.map(([k,l,u])=>`<th colspan="2">${l}${u?` (${u})`:""}</th>`).join("")+`</tr><tr>`+SPECK.map(()=>`<th>下限</th><th>上限</th>`).join("")+`</tr></thead><tbody>`+
+    MATS.map(([m,l])=>`<tr><td><b>${l}</b></td>`+SPECK.map(([k])=>{ const s=(SPEC[m]||{})[k]||{};
       return `<td><input data-sm="${m}" data-sk="${k}" data-sf="min" inputmode="decimal" value="${v(s.min)}" ${dis}></td><td><input data-sm="${m}" data-sk="${k}" data-sf="max" inputmode="decimal" value="${v(s.max)}" ${dis}></td>`; }).join("")+`</tr>`).join("")+`</tbody></table>`;
+  const d=DR();
+  $("drEdit").innerHTML=`<div class="small">2種類目のダライ粉と、1チャージあたりの上限重量 (kg)。テスト用の新しいダライ粉は「＋ 種類を追加」で増やせます。<br><span class="id">Tambah jenis baru untuk uji coba.</span></div>
+   <label class="f" style="max-width:240px;margin:8px 0">メイン (固定)<input id="drE_main" value="${esc(d.main)}" ${dis}></label>
+   <table class="spectbl dredit"><thead><tr><th>2種類目の名前</th><th>上限 (kg)</th><th></th></tr></thead><tbody id="drE_rows">`+
+   d.types.map(t=>`<tr><td><input data-dn value="${esc(t.name)}" ${dis}></td><td><input data-dm inputmode="decimal" value="${t.maxKg??""}" ${dis}></td><td><button data-drdel ${dis}>削除</button></td></tr>`).join("")+
+   `</tbody></table>`+(specUnlocked?`<button id="drE_add" style="margin-top:6px">＋ 種類を追加 <span class="id">Tambah</span></button>`:"");
+  if(specUnlocked){ $("drE_add").onclick=()=>{ $("drE_rows").insertAdjacentHTML("beforeend",`<tr><td><input data-dn placeholder="例: 新ダライ粉"></td><td><input data-dm inputmode="decimal" value="225"></td><td><button data-drdel>削除</button></td></tr>`); };
+    $("drE_rows").onclick=e=>{ const b=e.target.closest("[data-drdel]"); if(b) b.closest("tr").remove(); }; }
   $("specBtns").style.display=specUnlocked?"flex":"none"; $("specLock").style.display=specUnlocked?"none":"flex";
 }
 function adminPin(){ return String((window.SUNA_CONFIG&&window.SUNA_CONFIG.adminPin)||"0000"); }
 $("btnSpecUnlock").onclick=()=>{ if(VIEW) return; if($("specPin").value===adminPin()){ specUnlocked=true; $("specPin").value=""; renderSpecEdit(); $("specInfo").textContent=""; } else { $("specInfo").textContent="パスワードが違います / Kata sandi salah"; } };
 $("btnSpecSave").onclick=()=>{
-  const ns={}; ["FC200","FC250"].forEach(m=>{ ns[m]={}; SPECK.forEach(([k])=>ns[m][k]={min:null,max:null}); });
+  const ns={}; MATS.map(x=>x[0]).forEach(m=>{ ns[m]={}; SPECK.forEach(([k])=>ns[m][k]={min:null,max:null}); });
   let bad="";
   document.querySelectorAll("#specEdit input[data-sm]").forEach(inp=>{ const v=inp.value.trim(); const n=v===""?null:num(v); if(v!==""&&n==null) bad="数字を入れてください"; ns[inp.dataset.sm][inp.dataset.sk][inp.dataset.sf]=n; });
-  ["FC200","FC250"].forEach(m=>SPECK.forEach(([k,l])=>{ const s=ns[m][k]; if(s.min!=null&&s.max!=null&&s.min>s.max) bad=`${m} ${l}：下限が上限より大きいです`; }));
+  MATS.map(x=>x[0]).forEach(m=>SPECK.forEach(([k,l])=>{ const s=ns[m][k]; if(s.min!=null&&s.max!=null&&s.min>s.max) bad=`${matL(m)} ${l}：下限が上限より大きいです`; }));
+  const types=[...document.querySelectorAll("#drE_rows tr")].map(tr=>({name:tr.querySelector("[data-dn]").value.trim(),maxKg:num(tr.querySelector("[data-dm]").value)})).filter(t=>t.name);
+  if(new Set(types.map(t=>t.name)).size!==types.length) bad="ダライ粉の名前が重複しています";
+  if(types.some(t=>t.maxKg==null||t.maxKg<=0)) bad="ダライ粉の上限(kg)を数字で入れてください";
+  ns.darai={main:$("drE_main").value.trim()||"岡本",types};
   if(bad){ $("specInfo").textContent=bad; return; }
   SPEC=ns; specU=Date.now(); LS.set(APP+":spec",{spec:SPEC,u:specU}); Sync.queueSpec(SPEC,specU);
-  specUnlocked=false; renderSpecEdit(); renderAll(); $("specInfo").textContent="保存しました（全端末に反映されます）"; toast("規格を保存しました");
+  specUnlocked=false; renderSpecEdit(); renderAll(); $("specInfo").textContent="保存しました（全端末に反映されます）"; toast("設定を保存しました");
 };
 function applyServerSpec(sp,u){ if(!sp||!(u>specU)) return; SPEC=sp; specU=u; LS.set(APP+":spec",{spec:SPEC,u:specU}); renderHeader(); renderChips(); renderTable(); updateMarks(); if($("dlgSettings").open&&!specUnlocked) renderSpecEdit(); }
 $("btnSettings").onclick=()=>{ specUnlocked=false; renderSpecEdit(); $("specInfo").textContent=""; updateDirInfo(); const c=Sync.getCfg(); $("cfgUrl").value=c.syncUrl||""; $("cfgToken").value=c.token||""; $("cfgInfo").textContent=""; $("dlgSettings").showModal(); };
@@ -712,46 +804,47 @@ function workbook(sheets){
 XS.fills.melt=XS.fillXml.length; XS.fillXml.push('<fill><patternFill patternType="solid"><fgColor rgb="FFFFCC80"/></patternFill></fill>');
 XS.fills.pour=XS.fillXml.length; XS.fillXml.push('<fill><patternFill patternType="solid"><fgColor rgb="FFB39DDB"/></patternFill></fill>');
 const DELAYL={"":"",melt:"溶解工程",pour:"注湯工程"};
-function matL(m){ return m==="other"?"その他":(m||""); }
+const DATA_HEAD=["生産日","溶炉No","開始予定","開始時刻","材質","銑鉄(kg)","鋼鉄(kg)","ダライ粉合計(kg)","岡本(kg)","岡本 投入回数","ダライ粉2種類目","2種類目(kg)","2種類目 投入回数","戻り材(kg)","加炭材(kg)","シリコン(kg)","C追加","Si追加","スクラップ追加(kg)","CE","C","Si","引張強度","出湯温度(℃)","出湯時刻","デマンド回数","判定","作業者","遅れ原因","開始→出湯(分)","成分TP採取","規格外項目","記録確認(監督者)"];
 function dataRows(){
-  const out=[["生産日","溶炉No","開始予定","開始時刻","材質","銑鉄(kg)","鋼鉄(kg)","ダライ粉(kg)","戻り材(kg)","加炭材(kg)","シリコン(kg)","C/Si追加","CE","C","Si","引張強度","出湯温度(℃)","出湯時刻","デマンド回数","判定","作業者","遅れ原因","開始→出湯(分)","成分TP採取","規格外項目","記録確認(監督者)"]];
-  state.rows.forEach((r,i)=>{ if(!rowHas(r)) return; const e=elapsed(r);
-    out.push([state.date,i+1,SCHED[i],r.st,matL(r.mat),r.sen,r.kou,r.dar,r.mod,r.kat,r.sil,r.add,r.ce,r.c,r.si,r.ten,r.temp,r.tap,r.dem,judgeOf(r),r.worker,DELAYL[r.delay||""],e==null?"":e,TP.has(i+1)?"○":"",CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),state.confirmBy]); });
+  const out=[DATA_HEAD];
+  state.rows.forEach((r,i)=>{ if(!rowHas(r)) return; const e=elapsed(r); const m=drMainKg(r), o=drOtherKg(r);
+    out.push([state.date,i+1,SCHED[i],r.st,matL(r.mat),r.sen,r.kou,r.dar,m==null?"":m,cntOf(r,"drM")||"",r.drType||"",o==null?"":o,r.drType?(cntOf(r,"drKg")||""):"",r.mod,r.kat,r.sil,r.addC||r.add,r.addSi,r.addSc,r.ce,r.c,r.si,r.ten,r.temp,r.tap,r.dem,judgeOf(r),r.worker,DELAYL[r.delay||""],e==null?"":e,TP.has(i+1)?"○":"",CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),state.confirmBy]); });
   return out;
 }
 function eventRows(){ const out=[["生産日","No","発生時刻","終了時刻","担当","異常/変化点内容","処置内容"]]; liveEvents().forEach((e,i)=>out.push([state.date,i+1,e.start,e.end,e.person,e.content,e.action])); return out; }
 function buildNippoSheet(){
-  const S=new Sheet("日報"); S.landscape=true; S.showGrid=false;
-  S.cols=[5,6,6,5,5,5,6,6,7,6,6,6,7,6,6,6,6,7,6,6,5,8,8,6];
+  const S=new Sheet("日報"); S.landscape=true; S.showGrid=false; const L=26;
+  S.cols=[5,6,6,5,5,5,5,6,6,18,6,6,6,6,6,7,6,6,6,6,7,6,6,6,5,8,8];
   const H=st({font:1,fill:"head",border:1,h:"center",wrap:true}), B=st({border:1,h:"center"}), NG=st({font:2,border:1,h:"center",fill:"ng"});
   S.set(0,0,"溶解日報",st({font:3})); S.heights[0]=26;
   S.merge(0,1,1,1,"生産日",H); S.merge(2,1,4,1,state.date,B); S.merge(5,1,6,1,"目標",H); S.merge(7,1,9,1,"45分/チャージ",st({font:2,border:1,h:"center"}));
   S.merge(10,1,12,1,"記録確認(監督者)",st({font:2,fill:"ng",border:1,h:"center"})); S.merge(13,1,15,1,state.confirmBy,st({font:2,border:1,h:"center"}));
-  S.merge(16,1,23,1,"◯=成分TP採取 / 橙=遅れ(溶解工程) / 紫=遅れ(注湯工程) / 赤=規格外・NG",st({font:4}));
+  S.merge(16,1,L,1,"◯=成分TP採取 / 橙=遅れ(溶解工程) / 紫=遅れ(注湯工程) / 赤=規格外・NG",st({font:4}));
   const r0=3;
-  S.merge(0,r0,2,r0,"生産予定",H); S.set(3,r0,"",H); S.merge(3,r0,5,r0,"材質",H); S.merge(6,r0,12,r0,"配合履歴 (kg)",H); S.merge(13,r0,19,r0,"製造条件",H); S.merge(20,r0,23,r0,"",H);
-  const h=["溶炉","開始予定","開始時刻","FC200","FC250","その他","銑鉄","鋼鉄","ダライ粉","戻り材","加炭材","シリコン","C/Si追加","CE","C","Si","引張強度","出湯温度","出湯時刻","デマンド回数","判定","作業者","遅れ原因","所要(分)"];
+  S.merge(0,r0,2,r0,"生産予定",H); S.merge(3,r0,6,r0,"材質",H); S.merge(7,r0,15,r0,"配合履歴 (kg)",H); S.merge(16,r0,22,r0,"製造条件",H); S.merge(23,r0,L,r0,"",H);
+  const h=["溶炉","開始予定","開始時刻","FC200","FC250","その他H","その他L","銑鉄","鋼鉄","ダライ粉","戻り材","加炭材","シリコン","C追加","Si追加","スクラップ追加","CE","C","Si","引張強度","出湯温度","出湯時刻","デマンド回数","判定","作業者","遅れ原因","所要(分)"];
   h.forEach((t,i)=>S.set(i,r0+1,t,H)); S.heights[r0+1]=30;
-  const tot={}; MIX.forEach(k=>tot[k]=0);
+  const tot={}; MIX.forEach(k=>tot[k]=0); let tsc=0;
   state.rows.forEach((r,i)=>{ const y=r0+2+i; MIX.forEach(k=>tot[k]+=num(r[k])||0);
     const nf=r.delay? st({font:1,border:1,h:"center",fill:r.delay}) : st({font:TP.has(i+1)?2:1,border:1,h:"center"});
     S.set(0,y,(TP.has(i+1)?"◯":"")+(i+1),nf); S.set(1,y,SCHED[i],B); S.set(2,y,r.st,B);
-    S.set(3,y,r.mat==="FC200"?"✓":"",B); S.set(4,y,r.mat==="FC250"?"✓":"",B); S.set(5,y,r.mat==="other"?"✓":"",B);
-    MIX.forEach((k,j)=>S.set(6+j,y,r[k],B)); S.set(12,y,r.add,B);
-    ["ce","c","si"].forEach((k,j)=>S.set(13+j,y,r[k],cls(r,k)==="ng"?NG:st({border:1,h:"center",fmt:"d2"})));
-    S.set(16,y,r.ten,B); S.set(17,y,r.temp,cls(r,"temp")==="ng"?NG:B); S.set(18,y,r.tap,B); S.set(19,y,r.dem,B);
-    const j=judgeOf(r); S.set(20,y,j,j==="NG"?NG:B); S.set(21,y,r.worker,B); S.set(22,y,DELAYL[r.delay||""],r.delay?st({border:1,h:"center",fill:r.delay}):B);
-    const e=elapsed(r); S.set(23,y,e==null?"":e,e!=null&&e>TARGET_MIN?st({border:1,h:"center",fill:"warn"}):B); });
-  let y=r0+2+N; S.merge(0,y,5,y,"累計 (kg)",H); MIX.forEach((k,j)=>S.set(6+j,y,tot[k]?Math.round(tot[k]*1000)/1000:"",st({font:1,border:1,h:"center",fill:"head"})));
-  y+=2; S.merge(0,y,23,y,"異常/変化点履歴",st({font:1,fill:"head",border:1})); y++;
-  S.merge(0,y,1,y,"発生",H); S.merge(2,y,3,y,"〜",H); S.merge(4,y,12,y,"異常/変化点内容",H); S.merge(13,y,20,y,"処置内容",H); S.merge(21,y,23,y,"担当",H); y++;
+    ["FC200","FC250","otherH","otherL"].forEach((m,j)=>S.set(3+j,y,r.mat===m||(m==="otherH"&&r.mat==="other")?"✓":"",B));
+    MIX.forEach((k,j)=>S.set(7+j,y,k==="dar"&&drUsed(r)?drText(r):r[k],k==="dar"?st({border:1,h:"center",wrap:true}):B)); S.set(13,y,r.addC||r.add,B); S.set(14,y,r.addSi,B); S.set(15,y,r.addSc,B); tsc+=num(r.addSc)||0;
+    ["ce","c","si"].forEach((k,j)=>S.set(16+j,y,r[k],cls(r,k)==="ng"?NG:st({border:1,h:"center",fmt:"d2"})));
+    S.set(19,y,r.ten,B); S.set(20,y,r.temp,cls(r,"temp")==="ng"?NG:B); S.set(21,y,r.tap,B); S.set(22,y,r.dem,B);
+    const j=judgeOf(r); S.set(23,y,j,j==="NG"?NG:B); S.set(24,y,r.worker,B); S.set(25,y,DELAYL[r.delay||""],r.delay?st({border:1,h:"center",fill:r.delay}):B);
+    const e=elapsed(r); S.set(26,y,e==null?"":e,e!=null&&e>TARGET_MIN?st({border:1,h:"center",fill:"warn"}):B); });
+  let y=r0+2+N; S.merge(0,y,6,y,"累計 (kg)",H); MIX.forEach((k,j)=>S.set(7+j,y,tot[k]?Math.round(tot[k]*1000)/1000:"",st({font:1,border:1,h:"center",fill:"head"}))); S.set(15,y,tsc?Math.round(tsc*1000)/1000:"",st({font:1,border:1,h:"center",fill:"head"}));
+  const ds=drSummary(); if(ds.length){ y++; S.merge(0,y,6,y,"ダライ粉内訳",H); S.merge(7,y,L,y,ds.map(x=>`${x.name} ${fmtNum(x.kg)}kg`+(x.cnt?`(${x.cnt}回)`:"")).join("　/　"),st({font:1,border:1})); }
+  y+=2; S.merge(0,y,L,y,"異常/変化点履歴",st({font:1,fill:"head",border:1})); y++;
+  S.merge(0,y,1,y,"発生",H); S.merge(2,y,3,y,"〜",H); S.merge(4,y,13,y,"異常/変化点内容",H); S.merge(14,y,22,y,"処置内容",H); S.merge(23,y,L,y,"担当",H); y++;
   const W=st({border:1,wrap:true}); const LE=liveEvents(); (LE.length?LE:[{start:"",end:"",person:"",content:"",action:""}]).forEach(e=>{
-    S.merge(0,y,1,y,e.start,B); S.merge(2,y,3,y,e.end,B); S.merge(4,y,12,y,e.content,W); S.merge(13,y,20,y,e.action,W); S.merge(21,y,23,y,e.person,B); S.heights[y]=30; y++; });
+    S.merge(0,y,1,y,e.start,B); S.merge(2,y,3,y,e.end,B); S.merge(4,y,13,y,e.content,W); S.merge(14,y,22,y,e.action,W); S.merge(23,y,L,y,e.person,B); S.heights[y]=30; y++; });
   return S;
 }
 function tableSheet(name,rows,widths){ const S=new Sheet(name); S.freeze=1; S.cols=widths; const H=st({font:1,fill:"head",border:1,h:"center",wrap:true});
   rows.forEach((row,r)=>row.forEach((v,c)=>S.set(c,r,v,r===0?H:st({border:1})))); S.autoFilter="A1:"+ref(rows[0].length-1,Math.max(rows.length-1,0)); S.heights[0]=32; return S; }
-function buildXlsx(){ return workbook([buildNippoSheet(), tableSheet("データ",dataRows(),[11,6,8,8,7,8,8,9,8,8,9,9,6,6,6,8,9,8,8,6,10,9,9,8,10,10]), tableSheet("異常変化点",eventRows(),[11,5,9,9,10,50,50])]); }
+function buildXlsx(){ return workbook([buildNippoSheet(), tableSheet("データ",dataRows(),[11,6,8,8,8,8,8,10,8,8,10,9,9,8,8,9,7,7,10,6,6,6,8,9,8,8,6,10,9,9,8,10,10]), tableSheet("異常変化点",eventRows(),[11,5,9,9,10,50,50])]); }
 $("btnCsv").onclick=async()=>{
   if(!state.rows.some(rowHas)&&!liveEvents().length){ toast("入力データがありません"); return; }
   await Sync.flush();
@@ -791,7 +884,7 @@ const Sync=(function(){
   function build(type,ref){
     const d=state.date, e=EQUIP; let u, raw;
     if(type==="header"){ u=state.hu||Date.now(); raw={confirmBy:state.confirmBy}; }
-    else if(type==="row"){ const r=state.rows[ref]; u=r.u||Date.now(); raw=Object.assign({},r,{jOut:judgeOf(r),ngOut:CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),elapsed:elapsed(r),sched:SCHED[ref],tp:TP.has(ref+1)}); }
+    else if(type==="row"){ const r=state.rows[ref]; u=r.u||Date.now(); raw=Object.assign({},r,{jOut:judgeOf(r),ngOut:CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),elapsed:elapsed(r),sched:SCHED[ref],tp:TP.has(ref+1),drMain:DR().main,drMainKg:drMainKg(r),drMainCnt:cntOf(r,"drM"),drOtherKg:drOtherKg(r),drOtherCnt:r.drType?cntOf(r,"drKg"):0,matLabel:matL(r.mat)}); }
     else { const ev=state.events.find(x=>x.id===ref); u=ev.u; raw=Object.assign({},ev); }
     return {k:`${type}|${d}|${e}|${ref}`,op:{type,date:d,equip:e,ref:String(ref),u,raw}};
   }
@@ -811,7 +904,7 @@ const Sync=(function(){
     if(state.date!==d) return; let changed=false, selChanged=false, evChanged=false;
     (j.items||[]).forEach(it=>{ const k=`${it.type}|${d}|${EQUIP}|${it.ref}`; if(pending(k)) return; const raw=it.raw||{};
       if(it.type==="header"){ if((it.u||0)>(state.hu||0)){ state.confirmBy=String(raw.confirmBy??""); state.hu=it.u; changed=true; renderHeader(); } }
-      else if(it.type==="row"){ const i=+it.ref; if(!(i>=0&&i<N)) return; if((it.u||0)>(state.rows[i].u||0)){ const r=Object.assign(blankRow(),raw,{u:it.u}); ["jOut","ngOut","elapsed","sched","tp","noro"].forEach(x=>delete r[x]); r.calc=r.calc||{}; state.rows[i]=r; changed=true; if(i===sel) selChanged=true; } }
+      else if(it.type==="row"){ const i=+it.ref; if(!(i>=0&&i<N)) return; if((it.u||0)>(state.rows[i].u||0)){ const r=Object.assign(blankRow(),raw,{u:it.u}); ["jOut","ngOut","elapsed","sched","tp","noro","drMain","drMainKg","drMainCnt","drOtherKg","drOtherCnt","matLabel"].forEach(x=>delete r[x]); r.calc=r.calc||{}; state.rows[i]=r; changed=true; if(i===sel) selChanged=true; } }
       else if(it.type==="event"){ const le=state.events.find(x=>x.id===it.ref); const ev=Object.assign({id:it.ref,start:"",end:"",person:"",content:"",action:""},raw,{u:it.u});
         if(!le){ state.events.push(ev); changed=true; evChanged=true; } else if((it.u||0)>(le.u||0)){ Object.assign(le,ev); changed=true; evChanged=true; } } });
     if(changed){ save(); renderChips(); renderTable(); const act=document.activeElement, inside=s=>act&&act.closest&&act.closest(s);
