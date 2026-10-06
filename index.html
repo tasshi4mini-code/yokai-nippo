@@ -211,6 +211,13 @@ input::placeholder{color:#a8b0bd}
 .spectbl input{min-width:56px}
 .drwarn{color:#d50000;font-weight:bold;font-size:15px;margin-top:4px}
 .drmain.over{border-color:#d50000;background:#ffebee}
+.drtotbox{display:inline-block;margin-left:10px;padding:4px 14px;border:2px solid #7a2e00;border-radius:10px;background:#fff8f2;color:#7a2e00;font-size:16px;vertical-align:middle}
+#drTotal{font-size:34px;line-height:1.1;margin:0 4px}
+.digrow{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}
+#calcDig button{min-width:52px;min-height:38px;font-size:15px;padding:4px 8px}
+#calcDig button.on{background:#1f5fbf;color:#fff;border-color:#1f5fbf}
+.calcmust{color:#fff;background:#d50000;font-weight:bold;border-radius:8px;padding:0 10px;font-size:16px;max-height:0;overflow:hidden;transition:.2s}
+.calcmust.show{max-height:90px;padding:8px 10px;margin:4px 0}
 </style>
 </head>
 <body>
@@ -284,12 +291,12 @@ input::placeholder{color:#a8b0bd}
         <label class="f">戻り材 <span class="id">SEKI</span><input class="calc" data-k="mod" data-calc="1" readonly inputmode="none"></label>
         <label class="f">加炭材 <span class="id">karbon</span><input class="calc" data-k="kat" data-calc="1" readonly inputmode="none"></label>
         <label class="f">シリコン <span class="id">silikon</span><input class="calc" data-k="sil" data-calc="1" readonly inputmode="none"></label>
-        <label class="f">C追加 <span class="id">Tambah C</span><input data-k="addC" inputmode="decimal"></label>
-        <label class="f">Si追加 <span class="id">Tambah Si</span><input data-k="addSi" inputmode="decimal"></label>
+        <label class="f">C追加 <span class="id">Tambah C</span><input class="calc" data-k="addC" data-calc="1" readonly inputmode="none" placeholder="タップで電卓"></label>
+        <label class="f">Si追加 <span class="id">Tambah Si</span><input class="calc" data-k="addSi" data-calc="1" readonly inputmode="none" placeholder="タップで電卓"></label>
         <label class="f">スクラップ追加 (kg) <span class="id">Tambah skrap</span><input class="calc" data-k="addSc" data-calc="1" readonly inputmode="none" placeholder="タップで電卓"></label>
       </div>
       <div class="darai">
-        <div class="t" style="margin-top:12px">ダライ粉 <span class="id">DARAIKO</span> — 合計 <b id="drTotal">－</b> kg <span class="id">(岡本 ＋ 2種類目)</span></div>
+        <div class="t drhead" style="margin-top:12px">ダライ粉 <span class="id">DARAIKO</span> <span class="drtotbox">配合合計 <span class="id">Total</span> <b id="drTotal">－</b> kg</span> <span class="id">(岡本 ＋ 2種類目)</span></div>
         <div class="drgrid">
           <div class="drmain"><div class="small">メイン (固定) <span class="id">Utama</span></div><div class="drname" id="drMainName">岡本</div>
             <label class="f">重量 (kg) <span class="id">Berat</span><input class="calc" data-k="drM" data-calc="1" readonly inputmode="none" placeholder="タップで電卓"></label>
@@ -365,10 +372,12 @@ input::placeholder{color:#a8b0bd}
 
 <dialog id="dlgCalc"><div class="dlg">
   <h3 id="calcTitle" style="margin-bottom:6px">電卓</h3>
-  <div class="small">数字を入れて「＋」で追加、「確定」で合計を入力します。<span class="id">Masukkan angka, tekan + untuk menambah, Tetapkan untuk memasukkan total.</span></div>
+  <div class="small">数字を入れて「＋」で追加、最後に必ず「確定」を押します。<span class="id">Masukkan angka, tekan + untuk menambah, lalu WAJIB tekan Tetapkan.</span></div>
+  <div class="digrow"><span class="small">自動＋ <span class="id">Otomatis +</span></span><span class="seg" id="calcDig"></span></div>
   <div class="calc-list" id="calcList"></div>
   <div class="calc-disp" id="calcDisp">0</div>
   <div class="calcwarn" id="calcWarn"></div>
+  <div class="calcmust" id="calcMust"></div>
   <div class="calc-total">累計 <span class="id">Total</span>: <b id="calcTotal">0</b> kg</div>
   <div class="keys">
     <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button><button class="op" data-key="bs">⌫</button>
@@ -444,12 +453,13 @@ if(VIEW) document.body.classList.add("view");
 const SCHED=Array.from({length:N},(_,i)=>{ const m=8*60+45*i; return `${Math.floor(m/60)%24}:${String(m%60).padStart(2,"0")}`; });
 const TP=new Set([1,4,8,12,16,20,24,28]);
 const MIX=["sen","kou","dar","mod","kat","sil"];
-const MIXL={addSc:"スクラップ追加 Tambah skrap",drKg:"ダライ粉 2種類目",drM:"ダライ粉 岡本",sen:"銑鉄 SENTETSU",kou:"鋼鉄 SINDAN BARA",dar:"ダライ粉 DARAIKO",mod:"戻り材 SEKI",kat:"加炭材 karbon",sil:"シリコン silikon"};
+const MIXL={addC:"C追加 Tambah C",addSi:"Si追加 Tambah Si",addSc:"スクラップ追加 Tambah skrap",drKg:"ダライ粉 2種類目",drM:"ダライ粉 岡本",sen:"銑鉄 SENTETSU",kou:"鋼鉄 SINDAN BARA",dar:"ダライ粉 DARAIKO",mod:"戻り材 SEKI",kat:"加炭材 karbon",sil:"シリコン silikon"};
 const CHK=["c","si","temp"], CHKL={ce:"CE",c:"C",si:"Si",temp:"出湯温度"};
 const MATS=[["FC200","FC200",""],["FC250","FC250",""],["otherH","その他H","Lainnya H"],["otherL","その他L","Lainnya L"]];
 function matL(m){ if(m==="other") return "その他"; const x=MATS.find(a=>a[0]===m); return x?x[1]:(m||""); }
-const DEF_DR={main:"岡本",types:[{name:"T4",maxKg:375},{name:"大内",maxKg:150},{name:"エヌテック",maxKg:375},{name:"愛知材",maxKg:225}]};
-function DR(){ const d=SPEC.darai||{}; const ok=d.types&&d.types.length&&d.types.every(t=>"maxKg" in t); return {main:d.main||DEF_DR.main,types:ok?d.types:DEF_DR.types}; }
+const DEF_DR={main:"岡本",unit:75,types:[{name:"T4",maxKg:375},{name:"大内",maxKg:150},{name:"エヌテック",maxKg:375},{name:"愛知材",maxKg:225}]};
+function DR(){ const d=SPEC.darai||{}; const ok=d.types&&d.types.length&&d.types.every(t=>"maxKg" in t); return {main:d.main||DEF_DR.main,unit:num(d.unit)||DEF_DR.unit,types:ok?d.types:DEF_DR.types}; }
+function approx(kg){ const u=DR().unit; return u?Math.round(kg/u):0; }
 const TARGET_MIN=45;
 const LS={ get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
   set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true;}catch(e){return false;} },
@@ -477,7 +487,7 @@ function liveEvents(){ return state.events.filter(e=>!e.del); }
 
 // ---- 判定 ----
 function num(v){ if(v===""||v==null) return null; const n=parseFloat(String(v).replace(/[，,]/g,".")); return isNaN(n)?null:n; }
-function specOf(r,k){ const m=SPEC[r.mat]; if(!m) return null; const s=m[k]; return (s&&s.min!=null&&s.max!=null&&s.min!==""&&s.max!=="")?s:null; }
+function specOf(r,k){ const m=k==="temp"?{temp:SPEC.temp}:SPEC[r.mat]; if(!m) return null; const s=m[k]; return (s&&s.min!=null&&s.max!=null&&s.min!==""&&s.max!=="")?s:null; }
 function cls(r,k){ const n=num(r[k]), s=specOf(r,k); if(n==null||!s) return ""; return (n<s.min||n>s.max)?"ng":"ok"; }
 function autoJ(r){ let any=false, ng=false; CHK.forEach(k=>{ const c=cls(r,k); if(c) any=true; if(c==="ng") ng=true; }); return ng?"NG":(any?"OK":""); }
 function judgeOf(r){ return r.jm? r.judge : autoJ(r); }
@@ -496,8 +506,9 @@ function drMax(name){ const t=DR().types.find(x=>x.name===name); return t?num(t.
 function drText(r){ if(!drUsed(r)) return r.dar||""; const m=drMainKg(r), o=drOtherKg(r);
   return `${DR().main} ${m==null?"－":fmtNum(m)}${cntOf(r,"drM")?`(${cntOf(r,"drM")}回)`:""}`+(r.drType?` / ${r.drType} ${o==null?"－":fmtNum(o)}${cntOf(r,"drKg")?`(${cntOf(r,"drKg")}回)`:""}`:""); }
 function specText(){
-  const one=(m)=>{ const s=SPEC[m]; if(!s) return "未設定"; const parts=CHK.map(k=>s[k]&&s[k].min!=null&&s[k].max!=null?`${CHKL[k]} ${s[k].min}〜${s[k].max}${k==="temp"?"℃":""}`:null).filter(Boolean); return parts.length?parts.join(" / "):"未設定"; };
-  return MATS.map(([m,l])=>`<span><b>${l} 規格</b> ${one(m)}</span>`).join("");
+  const one=(m)=>{ const s=SPEC[m]; if(!s) return "未設定"; const parts=["c","si"].map(k=>s[k]&&s[k].min!=null&&s[k].max!=null?`${CHKL[k]} ${s[k].min}〜${s[k].max}${k==="temp"?"℃":""}`:null).filter(Boolean); return parts.length?parts.join(" / "):"未設定"; };
+  const t=SPEC.temp&&SPEC.temp.min!=null&&SPEC.temp.max!=null?`${SPEC.temp.min}〜${SPEC.temp.max}℃`:"未設定";
+  return MATS.map(([m,l])=>`<span><b>${l} 規格</b> ${one(m)}</span>`).join("")+`<span><b>出湯温度 (全材質共通)</b> ${t}</span>`;
 }
 
 // ---- 描画 ----
@@ -511,13 +522,13 @@ const PREVK={ce:"",c:"",si:"",kat:" kg",sil:" kg"};
 function renderDarai(){ const r=state.rows[sel], d=DR();
   $("drTotal").textContent=r.dar?fmtNum(num(r.dar)):"－"; $("drMainName").textContent=d.main;
   const mc=cntOf(r,"drM"); $("drMainCnt").textContent=mc?`投入 ${mc}回 / ${mc} kali`:"";
-  $("drTypes").innerHTML=[{name:""}].concat(d.types).map(t=>`<button data-dt="${esc(t.name)}" class="${(r.drType||"")===t.name?"on":""}">${t.name?esc(t.name)+`<br><span class="id">上限${t.maxKg}kg</span>`:"なし<br><span class=\"id\">Tidak ada</span>"}</button>`).join("")+(r.drType&&!d.types.some(t=>t.name===r.drType)?`<button class="on" data-dt="${esc(r.drType)}">${esc(r.drType)}</button>`:"");
+  $("drTypes").innerHTML=[{name:""}].concat(d.types).map(t=>`<button data-dt="${esc(t.name)}" class="${(r.drType||"")===t.name?"on":""}">${t.name?esc(t.name)+`<br><span class="id">上限${t.maxKg}kg（約${approx(t.maxKg)}回）</span>`:"なし<br><span class=\"id\">Tidak ada</span>"}</button>`).join("")+(r.drType&&!d.types.some(t=>t.name===r.drType)?`<button class="on" data-dt="${esc(r.drType)}">${esc(r.drType)}</button>`:"");
   const o=drOtherKg(r), mx=drMax(r.drType), sc=cntOf(r,"drKg");
   $("drSubLbl").textContent=r.drType?`${r.drType} の重量 (kg)`:"2種類目の重量 (kg)";
   $("drSubCnt").textContent=r.drType&&sc?`投入 ${sc}回 / ${sc} kali`:"";
   const over=mx!=null&&o!=null&&o>mx;
   $("drMainWarn").textContent=over?`⚠ 岡本を ${fmtNum(o-mx)}kg 減らしてください`:""; document.querySelector(".drmain").classList.toggle("over",over);
-  $("drMax").textContent = r.drType ? (mx!=null?(over?`⚠ 上限 ${mx}kg を ${fmtNum(o-mx)}kg 超えています。岡本を減らしてください / Kurangi Okamoto`:`上限 ${mx}kg（残り ${fmtNum(mx-(o||0))}kg）`):"") : "2種類目を選んでください / Pilih jenis"; $("drMax").className="drmax"+(over||(mx!=null&&o!=null&&o>=mx)?" full":"");
+  $("drMax").textContent = r.drType ? (mx!=null?(over?`⚠ 上限 ${mx}kg を ${fmtNum(o-mx)}kg 超えています。岡本を減らしてください / Kurangi Okamoto`:`上限 ${mx}kg（約${approx(mx)}回）　残り ${fmtNum(mx-(o||0))}kg`+(o?`　入力 ${fmtNum(o)}kg ≈ 約${approx(o)}回分`:"")):"") : "2種類目を選んでください / Pilih jenis"; $("drMax").className="drmax"+(over||(mx!=null&&o!=null&&o>=mx)?" full":"");
   const kgInp=document.querySelector('#entryCard input[data-k="drKg"]'); kgInp.disabled=!r.drType; kgInp.placeholder=r.drType?"タップで電卓":"－";
 }
 // 前のチャージ(同じ日のより前の番号)で入力された値。なければ前日以前(この端末)の最後の値
@@ -542,7 +553,7 @@ function updateMarks(){
   const tot=MIX.reduce((a,k)=>a+(num(r[k])||0),0); $("mixTotal").textContent= tot? `このチャージの配合合計 Total: ${fmtNum(tot)} kg` : "";
   const j=judgeOf(r); $("judgeView").textContent=j||"－"; $("judgeView").style.color=j==="NG"?"var(--ng-ink)":j==="OK"?"var(--ok-ink)":"var(--sub)";
   document.querySelectorAll("[data-j]").forEach(b=>{ const v=b.dataset.j; b.className = (v==="auto"&&!r.jm)?"on-none":(r.jm&&r.judge===v?(v==="OK"?"on-ok":"on-ng"):""); });
-  $("judgeNote").textContent = r.jm? `手動 (自動判定: ${autoJ(r)||"－"})` : (r.mat&&!CHK.some(k=>specOf(r,k))?`${matL(r.mat)}：規格が未設定のため自動判定なし（設定画面で入力できます）`:"C・Si・出湯温度の規格で自動判定");
+  $("judgeNote").textContent = r.jm? `手動 (自動判定: ${autoJ(r)||"－"})` : (r.mat&&!["c","si"].some(k=>specOf(r,k))?`${matL(r.mat)}：C・Siの規格が未設定（設定画面で入力できます）`:"C・Si・出湯温度の規格で自動判定");
   { const sp=["c","si"].map(k=>{ const s=specOf(r,k); return s?`${CHKL[k]} ${s.min}〜${s.max}`:null; }).filter(Boolean);
     $("condSpec").textContent = r.mat ? (sp.length?`規格(${matL(r.mat)}) ${sp.join("　")}`:`規格(${matL(r.mat)}) 未設定`) : "材質を選ぶと規格を表示"; }
   document.querySelectorAll("#delayBtns button").forEach(b=>{ const v=b.dataset.d; b.className = r.delay===v ? (v===""?"on-none":"on-"+v) : ""; });
@@ -616,24 +627,34 @@ $("events").addEventListener("click",async e=>{ const d=e.target.dataset.del; if
 $("date").addEventListener("change",()=>{ const d=$("date").value; if(!d) return; load(d); sel= d===todayStr()?nowSlot():0; renderAll(); Sync.pull(); });
 
 // ---- 電卓 ----
-let calc={k:null,list:[],cur:""};
+let calc={k:null,list:[],cur:"",orig:"",warned:false};
+const DIG_DEF={drM:3,drKg:2};
+let DIGS=LS.get(APP+":digits",{});
+function digOf(k){ return (k in DIGS)?DIGS[k]:(DIG_DEF[k]||0); }
+function calcDirty(){ return calc.cur!=="" || calc.list.map(fmtNum).join("+")!==calc.orig; }
+function setMust(on){ $("calcMust").classList.toggle("show",on); $("calcMust").innerHTML=on?"⚠ 「確定」を押してください / Tekan Tetapkan<br><span style=\"font-size:13px;font-weight:normal\">取り消すときは、もう一度「閉じる」</span>":""; }
 function calcTotal(){ return calc.list.reduce((a,b)=>a+b,0)+(num(calc.cur)||0); }
 function renderCalc(){ $("calcList").innerHTML=calc.list.length?calc.list.map((v,i)=>`<span data-ci="${i}" title="タップで削除">${fmtNum(v)} ✕</span>`).join(""):'<span class="id" style="background:none;cursor:default">まだ追加なし / Belum ada</span>';
+  const dg=digOf(calc.k); $("calcDig").innerHTML=[0,1,2,3,4].map(n=>`<button data-dg="${n}" class="${n===dg?"on":""}">${n?n+"桁":"なし"}</button>`).join("");
   $("calcDisp").textContent=calc.cur||"0"; $("calcTotal").textContent=fmtNum(calcTotal());
   const n=calc.list.length+(num(calc.cur)!=null?1:0), mx=calc.k==="drKg"?drMax(state.rows[sel].drType):null, tt=calcTotal();
   $("calcWarn").textContent = (mx!=null&&tt>mx)? `⚠ 上限 ${mx}kg を ${fmtNum(tt-mx)}kg 超えています（${fmtNum(tt)}kg）。岡本を減らしてください / Kurangi Okamoto` : (n?`${n}回 / ${n} kali`:""); $("calcWarn").style.color=(mx!=null&&tt>mx)?"#d50000":"var(--sub)"; }
 function openCalc(k){ if(VIEW) return; const r=state.rows[sel]; if(k==="drKg"&&!r.drType){ toast("先に2種類目のダライ粉を選んでください"); return; } calc.k=k; const expr=(r.calc&&r.calc[k])||"";
-  calc.list = expr ? expr.split("+").map(num).filter(v=>v!=null) : (num(r[k])!=null?[num(r[k])]:[]); calc.cur="";
+  calc.list = expr ? expr.split("+").map(num).filter(v=>v!=null) : (num(r[k])!=null?[num(r[k])]:[]); calc.cur=""; calc.orig=calc.list.map(fmtNum).join("+"); calc.warned=false; setMust(false);
   $("calcTitle").textContent=`No.${sel+1}　${k==="drKg"?"ダライ粉 "+(r.drType||"2種類目")+(drMax(r.drType)!=null?`（上限 ${drMax(r.drType)}kg）`:""):k==="drM"?"ダライ粉 "+DR().main:MIXL[k]} (kg)`; renderCalc(); $("dlgCalc").showModal(); }
 document.querySelectorAll("input[data-calc]").forEach(inp=>inp.addEventListener("click",()=>openCalc(inp.dataset.k)));
+$("calcDig").addEventListener("click",e=>{ const b=e.target.closest("[data-dg]"); if(!b) return; DIGS[calc.k]=+b.dataset.dg; LS.set(APP+":digits",DIGS); renderCalc(); });
+$("dlgCalc").addEventListener("cancel",e=>{ e.preventDefault(); document.querySelector('#dlgCalc [data-key="cancel"]').click(); });
 $("calcList").addEventListener("click",e=>{ const s=e.target.closest("[data-ci]"); if(!s) return; calc.list.splice(+s.dataset.ci,1); renderCalc(); });
 document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e.target.closest("[data-key]"); if(!b) return; const k=b.dataset.key;
-  if(/^[0-9]$/.test(k)){ if(calc.cur.length<9) calc.cur=(calc.cur==="0"?"":calc.cur)+k; }
+  if(k!=="cancel"&&calc.warned){ calc.warned=false; setMust(false); }
+  if(/^[0-9]$/.test(k)){ if(calc.cur.length<9) calc.cur=(calc.cur==="0"?"":calc.cur)+k;
+    const dg=digOf(calc.k); if(dg&&calc.cur.replace(/[^0-9]/g,"").length>=dg){ const v=num(calc.cur); if(v!=null){ calc.list.push(v); calc.cur=""; } } }
   else if(k==="."){ if(!calc.cur.includes(".")) calc.cur=(calc.cur||"0")+"."; }
   else if(k==="bs"){ calc.cur=calc.cur.slice(0,-1); }
   else if(k==="clr"){ calc.cur=""; calc.list=[]; }
   else if(k==="plus"){ const v=num(calc.cur); if(v!=null){ calc.list.push(v); calc.cur=""; } }
-  else if(k==="cancel"){ $("dlgCalc").close(); return; }
+  else if(k==="cancel"){ if(calcDirty()&&!calc.warned){ calc.warned=true; setMust(true); return; } setMust(false); $("dlgCalc").close(); return; }
   else if(k==="ok"){ const r=state.rows[sel]; const overMx=calc.k==="drKg"?drMax(r.drType):null, overT=calcTotal();
     const v=num(calc.cur); if(v!=null) calc.list.push(v); const tot=calc.list.reduce((a,b)=>a+b,0);
     r[calc.k]=calc.list.length?fmtNum(tot):""; r.calc=r.calc||{}; r.calc[calc.k]=calc.list.length>1?calc.list.map(fmtNum).join("+"):"";
@@ -644,16 +665,18 @@ document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e
 document.addEventListener("keydown",e=>{ if(!$("dlgCalc").open) return; const map={"Enter":"ok","Backspace":"bs","+":"plus","Escape":"cancel"}; const k=map[e.key]||(/^[0-9.]$/.test(e.key)?e.key:null); if(!k) return; e.preventDefault(); const b=document.querySelector(`#dlgCalc [data-key="${k}"]`); if(b) b.click(); });
 
 // ---- 設定 (製造条件の規格) ----
-const SPECK=[["c","C",""],["si","Si",""],["temp","出湯温度","℃"]];
+const SPECK=[["c","C",""],["si","Si",""]];
 let specUnlocked=false;
 function renderSpecEdit(){
   const v=x=>x==null?"":x, dis=specUnlocked?"":"disabled";
   $("specEdit").innerHTML=`<table class="spectbl"><thead><tr><th rowspan="2">材質</th>`+SPECK.map(([k,l,u])=>`<th colspan="2">${l}${u?` (${u})`:""}</th>`).join("")+`</tr><tr>`+SPECK.map(()=>`<th>下限</th><th>上限</th>`).join("")+`</tr></thead><tbody>`+
     MATS.map(([m,l])=>`<tr><td><b>${l}</b></td>`+SPECK.map(([k])=>{ const s=(SPEC[m]||{})[k]||{};
-      return `<td><input data-sm="${m}" data-sk="${k}" data-sf="min" inputmode="decimal" value="${v(s.min)}" ${dis}></td><td><input data-sm="${m}" data-sk="${k}" data-sf="max" inputmode="decimal" value="${v(s.max)}" ${dis}></td>`; }).join("")+`</tr>`).join("")+`</tbody></table>`;
+      return `<td><input data-sm="${m}" data-sk="${k}" data-sf="min" inputmode="decimal" value="${v(s.min)}" ${dis}></td><td><input data-sm="${m}" data-sk="${k}" data-sf="max" inputmode="decimal" value="${v(s.max)}" ${dis}></td>`; }).join("")+`</tr>`).join("")+`</tbody></table>`+
+    `<table class="spectbl" style="margin-top:8px"><tr><td><b>出湯温度 (℃)</b><br><span class="id">全材質共通 / semua bahan</span></td><td>下限<input id="specTmin" inputmode="decimal" value="${v((SPEC.temp||{}).min)}" ${dis}></td><td>上限<input id="specTmax" inputmode="decimal" value="${v((SPEC.temp||{}).max)}" ${dis}></td></tr></table>`;
   const d=DR();
   $("drEdit").innerHTML=`<div class="small">2種類目のダライ粉と、1チャージあたりの上限重量 (kg)。テスト用の新しいダライ粉は「＋ 種類を追加」で増やせます。<br><span class="id">Tambah jenis baru untuk uji coba.</span></div>
-   <label class="f" style="max-width:240px;margin:8px 0">メイン (固定)<input id="drE_main" value="${esc(d.main)}" ${dis}></label>
+   <div style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0"><label class="f" style="max-width:220px">メイン (固定)<input id="drE_main" value="${esc(d.main)}" ${dis}></label>
+   <label class="f" style="max-width:220px">1回の目安 (kg)<span class="id">約何回の計算用</span><input id="drE_unit" inputmode="decimal" value="${d.unit}" ${dis}></label></div>
    <table class="spectbl dredit"><thead><tr><th>2種類目の名前</th><th>上限 (kg)</th><th></th></tr></thead><tbody id="drE_rows">`+
    d.types.map(t=>`<tr><td><input data-dn value="${esc(t.name)}" ${dis}></td><td><input data-dm inputmode="decimal" value="${t.maxKg??""}" ${dis}></td><td><button data-drdel ${dis}>削除</button></td></tr>`).join("")+
    `</tbody></table>`+(specUnlocked?`<button id="drE_add" style="margin-top:6px">＋ 種類を追加 <span class="id">Tambah</span></button>`:"");
@@ -671,7 +694,9 @@ $("btnSpecSave").onclick=()=>{
   const types=[...document.querySelectorAll("#drE_rows tr")].map(tr=>({name:tr.querySelector("[data-dn]").value.trim(),maxKg:num(tr.querySelector("[data-dm]").value)})).filter(t=>t.name);
   if(new Set(types.map(t=>t.name)).size!==types.length) bad="ダライ粉の名前が重複しています";
   if(types.some(t=>t.maxKg==null||t.maxKg<=0)) bad="ダライ粉の上限(kg)を数字で入れてください";
-  ns.darai={main:$("drE_main").value.trim()||"岡本",types};
+  ns.darai={main:$("drE_main").value.trim()||"岡本",unit:num($("drE_unit").value)||75,types};
+  { const a=$("specTmin").value.trim(), b=$("specTmax").value.trim(); const tn=a===""?null:num(a), tx=b===""?null:num(b);
+    if((a!==""&&tn==null)||(b!==""&&tx==null)) bad="出湯温度は数字で入れてください"; if(tn!=null&&tx!=null&&tn>tx) bad="出湯温度：下限が上限より大きいです"; ns.temp={min:tn,max:tx}; }
   if(bad){ $("specInfo").textContent=bad; return; }
   SPEC=ns; specU=Date.now(); LS.set(APP+":spec",{spec:SPEC,u:specU}); Sync.queueSpec(SPEC,specU);
   specUnlocked=false; renderSpecEdit(); renderAll(); $("specInfo").textContent="保存しました（全端末に反映されます）"; toast("設定を保存しました");
