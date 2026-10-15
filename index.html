@@ -219,6 +219,7 @@ input::placeholder{color:#a8b0bd}
 .calcmust{color:#fff;background:#d50000;font-weight:bold;border-radius:8px;padding:0 10px;font-size:16px;max-height:0;overflow:hidden;transition:.2s}
 .calcmust.show{max-height:90px;padding:8px 10px;margin:4px 0}
 </style>
+input.pad{cursor:pointer;border-style:dashed;font-weight:bold}
 </head>
 <body>
 <header class="top">
@@ -315,13 +316,13 @@ input::placeholder{color:#a8b0bd}
     <div class="sec">
       <div class="t">製造条件 <span class="id">Kondisi produksi</span> <span id="condSpec" class="condspec"></span></div>
       <div class="grid g-cond">
-        <label class="f">CE <span class="id">komponen</span><input data-k="ce" inputmode="decimal"><span class="hint" data-h="ce"></span></label>
-        <label class="f">C<input data-k="c" inputmode="decimal"><span class="hint" data-h="c"></span></label>
-        <label class="f">Si<input data-k="si" inputmode="decimal"><span class="hint" data-h="si"></span></label>
-        <label class="f">引張強度 <span class="id">Kekuatan tarik</span><input data-k="ten" inputmode="decimal"></label>
-        <label class="f">出湯温度 (℃) <span class="id">Suhu air panas</span><input data-k="temp" inputmode="decimal"><span class="hint" data-h="temp"></span></label>
+        <label class="f">CE <span class="id">komponen</span><input class="pad" data-k="ce" data-pad="1" readonly inputmode="none" placeholder="タップで入力"><span class="hint" data-h="ce"></span></label>
+        <label class="f">C<input class="pad" data-k="c" data-pad="1" readonly inputmode="none" placeholder="タップで入力"><span class="hint" data-h="c"></span></label>
+        <label class="f">Si<input class="pad" data-k="si" data-pad="1" readonly inputmode="none" placeholder="タップで入力"><span class="hint" data-h="si"></span></label>
+        <label class="f">引張強度 <span class="id">Kekuatan tarik</span><input class="pad" data-k="ten" data-pad="1" readonly inputmode="none" placeholder="タップで入力"></label>
+        <label class="f">出湯温度 (℃) <span class="id">Suhu air panas</span><input class="pad" data-k="temp" data-pad="1" readonly inputmode="none" placeholder="タップで入力"><span class="hint" data-h="temp"></span></label>
         <label class="f">出湯時刻 <span class="id">Waktunya air panas</span><span class="tcell"><input type="time" data-k="tap"><button data-now="tap">今</button></span></label>
-        <label class="f">デマンド回数 <span class="id">Jumlah demand</span><input data-k="dem" inputmode="numeric"></label>
+        <label class="f">デマンド回数 <span class="id">Jumlah demand</span><input class="pad" data-k="dem" data-pad="1" readonly inputmode="none" placeholder="タップで入力"></label>
       </div>
     </div>
 
@@ -384,6 +385,18 @@ input::placeholder{color:#a8b0bd}
     <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button><button class="op" data-key="clr">C</button>
     <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button><button class="op" data-key="plus">＋</button>
     <button data-key="0">0</button><button data-key=".">.</button><button class="op" data-key="cancel" style="font-size:15px">閉じる<br><span class="id">Tutup</span></button><button class="ok" data-key="ok">確定<br>Tetapkan</button>
+  </div>
+</div></dialog>
+
+<dialog id="dlgPad"><div class="dlg">
+  <h3 id="padTitle" style="margin-bottom:6px">入力</h3>
+  <div class="small" id="padSpec"></div>
+  <div class="calc-disp" id="padDisp" style="margin:8px 0 12px">0</div>
+  <div class="keys">
+    <button data-pk="7">7</button><button data-pk="8">8</button><button data-pk="9">9</button><button class="op" data-pk="bs">⌫</button>
+    <button data-pk="4">4</button><button data-pk="5">5</button><button data-pk="6">6</button><button class="op" data-pk="clr">C</button>
+    <button data-pk="1">1</button><button data-pk="2">2</button><button data-pk="3">3</button><button class="op" data-pk="cancel" style="font-size:15px">閉じる<br><span class="id">Tutup</span></button>
+    <button data-pk="0">0</button><button data-pk="." id="padDot">.</button><button data-pk="00">00</button><button class="ok" data-pk="ok">確定<br>Tetapkan</button>
   </div>
 </div></dialog>
 
@@ -540,7 +553,7 @@ function renderEntry(){
   const r=state.rows[sel];
   $("bigNo").textContent=sel+1; $("bigNo").className="bigno no "+(r.delay||""); $("schedTime").textContent=SCHED[sel]; $("tpMark").hidden=!TP.has(sel+1);
   document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{ const k=inp.dataset.k; inp.value=r[k]||"";
-    if(k in PREVK){ const pv=prevVal(sel,k); inp.placeholder = pv ? `前回 ${pv}${PREVK[k]}` : (k==="kat"||k==="sil"?"タップで電卓":""); }
+    if(k in PREVK){ const pv=prevVal(sel,k); inp.placeholder = pv ? `前回 ${pv}${PREVK[k]}` : (k==="kat"||k==="sil"?"タップで電卓":(inp.dataset.pad?"タップで入力":"")); }
     if(k==="worker"&&!r.worker){ const p=sel>0?state.rows[sel-1].worker:""; inp.placeholder=p?"前回 "+p:"氏名 / nama"; } });
   document.querySelectorAll("#matBtns button").forEach(b=>b.classList.toggle("on",b.dataset.mat===r.mat));
   renderDarai();
@@ -548,7 +561,7 @@ function renderEntry(){
 }
 function updateMarks(){
   const r=state.rows[sel];
-  CHK.forEach(k=>{ const inp=document.querySelector(`#entryCard input[data-k="${k}"]`); const c=cls(r,k); inp.className=c; const s=specOf(r,k); const h=document.querySelector(`[data-h="${k}"]`);
+  CHK.forEach(k=>{ const inp=document.querySelector(`#entryCard input[data-k="${k}"]`); const c=cls(r,k); inp.className=c+(inp.dataset.pad?" pad":""); const s=specOf(r,k); const h=document.querySelector(`[data-h="${k}"]`);
     h.className="hint "+(c==="ng"?"ng":""); h.textContent=c==="ng"?`規格外 (${s.min}〜${s.max})`:(c==="ok"?"OK":(s?`規格 ${s.min}〜${s.max}`:"")); });
   const tot=MIX.reduce((a,k)=>a+(num(r[k])||0),0); $("mixTotal").textContent= tot? `このチャージの配合合計 Total: ${fmtNum(tot)} kg` : "";
   const j=judgeOf(r); $("judgeView").textContent=j||"－"; $("judgeView").style.color=j==="NG"?"var(--ng-ink)":j==="OK"?"var(--ok-ink)":"var(--sub)";
@@ -603,7 +616,7 @@ function rememberWorker(w){ if(w&&!workers.includes(w)){ workers.unshift(w); wor
 $("chips").addEventListener("click",e=>{ const b=e.target.closest(".chip"); if(b) selectSlot(+b.dataset.i); });
 $("tbody").addEventListener("click",e=>{ const tr=e.target.closest("tr[data-i]"); if(tr){ selectSlot(+tr.dataset.i); $("entryCard").scrollIntoView({behavior:"smooth",block:"start"}); } });
 document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{
-  if(inp.dataset.calc) return;
+  if(inp.dataset.calc||inp.dataset.pad) return;
   inp.addEventListener("input",()=>{ if(VIEW) return; const r=state.rows[sel], k=inp.dataset.k; r[k]=inp.value.trim();
     if(k==="temp"&&r.temp&&!r.tap){ r.tap=nowHM(); document.querySelector('#entryCard input[data-k="tap"]').value=r.tap; }
     touchRow(sel); refreshLight(); });
@@ -662,6 +675,26 @@ document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e
     if(overMx!=null&&overT>overMx) setTimeout(()=>alertOver(r.drType,overMx,overT),50);
     $("dlgCalc").close(); touchRow(sel); renderEntry(); refreshLight(); return; }
   renderCalc(); });
+// ---- 数字キー (製造条件) ----
+const PADL={ce:"CE",c:"C",si:"Si",ten:"引張強度 Kekuatan tarik",temp:"出湯温度 (℃) Suhu",dem:"デマンド回数 Jumlah demand"};
+let pad={k:null,cur:""};
+function renderPad(){ $("padDisp").textContent=pad.cur||"0"; }
+function openPad(k){ if(VIEW) return; const r=state.rows[sel]; pad.k=k; pad.cur=r[k]||"";
+  $("padTitle").textContent=`No.${sel+1}　${PADL[k]||k}`; const s=specOf(r,k);
+  $("padSpec").textContent= s?`規格 ${s.min}〜${s.max}`:""; $("padDot").disabled=(k==="dem"); renderPad(); $("dlgPad").showModal(); }
+document.querySelectorAll("input[data-pad]").forEach(inp=>inp.addEventListener("click",()=>openPad(inp.dataset.k)));
+$("dlgPad").addEventListener("cancel",e=>{ e.preventDefault(); $("dlgPad").close(); });
+document.querySelector("#dlgPad .keys").addEventListener("click",e=>{ const b=e.target.closest("[data-pk]"); if(!b||b.disabled) return; const k=b.dataset.pk;
+  if(/^[0-9]+$/.test(k)){ if(pad.cur.length<8) pad.cur=(pad.cur==="0"?"":pad.cur)+k; }
+  else if(k==="."){ if(!pad.cur.includes(".")) pad.cur=(pad.cur||"0")+"."; }
+  else if(k==="bs"){ pad.cur=pad.cur.slice(0,-1); }
+  else if(k==="clr"){ pad.cur=""; }
+  else if(k==="cancel"){ $("dlgPad").close(); return; }
+  else if(k==="ok"){ const r=state.rows[sel]; let v=pad.cur.replace(/\.$/,""); r[pad.k]=v;
+    if(pad.k==="temp"&&v&&!r.tap) r.tap=nowHM();
+    $("dlgPad").close(); touchRow(sel); renderEntry(); refreshLight(); return; }
+  renderPad(); });
+document.addEventListener("keydown",e=>{ if(!$("dlgPad").open) return; const map={"Enter":"ok","Backspace":"bs","Escape":"cancel"}; const k=map[e.key]||(/^[0-9.]$/.test(e.key)?e.key:null); if(!k) return; e.preventDefault(); const b=document.querySelector(`#dlgPad [data-pk="${k}"]`); if(b) b.click(); });
 document.addEventListener("keydown",e=>{ if(!$("dlgCalc").open) return; const map={"Enter":"ok","Backspace":"bs","+":"plus","Escape":"cancel"}; const k=map[e.key]||(/^[0-9.]$/.test(e.key)?e.key:null); if(!k) return; e.preventDefault(); const b=document.querySelector(`#dlgCalc [data-key="${k}"]`); if(b) b.click(); });
 
 // ---- 設定 (製造条件の規格) ----
