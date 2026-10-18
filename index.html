@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>溶解日報</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#7a2e00">
@@ -218,8 +218,27 @@ input::placeholder{color:#a8b0bd}
 #calcDig button.on{background:#1f5fbf;color:#fff;border-color:#1f5fbf}
 .calcmust{color:#fff;background:#d50000;font-weight:bold;border-radius:8px;padding:0 10px;font-size:16px;max-height:0;overflow:hidden;transition:.2s}
 .calcmust.show{max-height:90px;padding:8px 10px;margin:4px 0}
-</style>
 input.pad{cursor:pointer;border-style:dashed;font-weight:bold}
+/* v9: ダブルタップで拡大しない・文字を大きく */
+html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
+@media screen{
+ body{font-size:17px}
+ label.f{font-size:15px}
+ .sec .t{font-size:15px}
+ .id{font-size:13px}
+ input,select,textarea{font-size:20px;min-height:52px}
+ textarea{font-size:18px;min-height:96px}
+ button{font-size:17px;min-height:50px}
+ .chip{font-size:17px;min-height:54px}
+ .hint{font-size:14px}
+ .small{font-size:14px}
+ .card h2{font-size:19px}
+ table{font-size:15px} th{font-size:13px}
+ select.wsel{font-weight:bold;background:#fff;appearance:auto}
+ input::placeholder{font-size:16px}
+ .g-cond{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+}
+</style>
 </head>
 <body>
 <header class="top">
@@ -331,7 +350,7 @@ input.pad{cursor:pointer;border-style:dashed;font-weight:bold}
         <div><div class="t">判定 <span class="id">Pertimbangan</span> <span id="judgeView" style="font-size:18px"></span></div>
           <div class="seg"><button data-j="auto">自動<br><span class="id">Otomatis</span></button><button data-j="OK">OK</button><button data-j="NG">NG</button></div>
           <div class="small" id="judgeNote"></div></div>
-        <label class="f">作業者 <span class="id">nama pekerja</span><input data-k="worker" list="workerList" placeholder="氏名 / nama"></label>
+        <label class="f">作業者 <span class="id">nama pekerja</span><select id="workerSel" class="wsel"></select><input data-k="worker" id="workerNew" hidden placeholder="名前を入力 / tulis nama"></label>
       </div>
       <div style="margin-top:12px">
         <div class="t">出湯の遅れ <span class="id">Keterlambatan penuangan</span> <span class="elapsed" id="elapsed" hidden></span></div>
@@ -483,6 +502,8 @@ let SPEC=JSON.parse(JSON.stringify((window.SUNA_CONFIG&&window.SUNA_CONFIG.spec)
 { const sp=LS.get(APP+":spec",null); if(sp&&sp.spec) SPEC=sp.spec; }
 let specU=(LS.get(APP+":spec",null)||{}).u||0;
 let workers=LS.get(APP+":workers",[]);
+const WORKERS0=(window.SUNA_CONFIG&&window.SUNA_CONFIG.workers)||["櫻井","有賀","ウェダ","リヤン","エサ","グデ","パセク"];
+function workerNames(){ return [...WORKERS0,...workers.filter(w=>!WORKERS0.includes(w))]; }
 let state, sel=0;
 
 function todayStr(){ const d=new Date(); if(d.getHours()<8) d.setDate(d.getDate()-1); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
@@ -557,6 +578,7 @@ function renderEntry(){
     if(k==="worker"&&!r.worker){ const p=sel>0?state.rows[sel-1].worker:""; inp.placeholder=p?"前回 "+p:"氏名 / nama"; } });
   document.querySelectorAll("#matBtns button").forEach(b=>b.classList.toggle("on",b.dataset.mat===r.mat));
   renderDarai();
+  workerAdding=false; renderWorkerSel();
   updateMarks();
 }
 function updateMarks(){
@@ -594,13 +616,19 @@ function renderEvents(){
    <div class="ev" data-e="${i}">
      <label class="f">発生時刻 <span class="id">Waktu</span><input type="time" data-ek="start" value="${esc(e.start)}" ${VIEW?"readonly":""}></label>
      <label class="f">〜<input type="time" data-ek="end" value="${esc(e.end)}" ${VIEW?"readonly":""}></label>
-     <label class="f wide">異常/変化点内容 <span class="id">Detail kelainan</span><textarea data-ek="content" ${VIEW?"readonly":""}>${esc(e.content)}</textarea></label>
-     <label class="f wide">処置内容 <span class="id">Tindakan</span><textarea data-ek="action" ${VIEW?"readonly":""}>${esc(e.action)}</textarea></label>
-     <label class="f">担当 <span class="id">yang bertanggung</span><input data-ek="person" list="workerList" value="${esc(e.person)}" ${VIEW?"readonly":""}></label>
+     <label class="f wide">異常/変化点内容 <span class="id">Detail kelainan</span><textarea lang="ja" data-ek="content" ${VIEW?"readonly":""}>${esc(e.content)}</textarea></label>
+     <label class="f wide">処置内容 <span class="id">Tindakan</span><textarea lang="ja" data-ek="action" ${VIEW?"readonly":""}>${esc(e.action)}</textarea></label>
+     <label class="f">担当 <span class="id">yang bertanggung</span><input lang="ja" data-ek="person" list="workerList" value="${esc(e.person)}" ${VIEW?"readonly":""}></label>
      <button data-del="${i}" style="align-self:end">削除</button>
    </div>`).join("");
 }
-function renderWorkers(){ $("workerList").innerHTML=workers.map(w=>`<option value="${esc(w)}">`).join(""); }
+function renderWorkers(){ $("workerList").innerHTML=workerNames().map(w=>`<option value="${esc(w)}">`).join(""); renderWorkerSel(); }
+let workerAdding=false;
+function renderWorkerSel(){ const r=state.rows[sel], w=r.worker||"", names=workerNames(); if(w&&!names.includes(w)) names.push(w);
+  const p=!w&&sel>0?state.rows[sel-1].worker:"";
+  $("workerSel").innerHTML=`<option value="">${p?"（前回 "+esc(p)+"）選んでください":"選んでください / pilih"}</option>`+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")+`<option value="__add">＋ 名前を追加 / tambah nama</option>`;
+  $("workerSel").value=workerAdding?"__add":w; $("workerSel").disabled=VIEW; $("workerNew").hidden=!workerAdding; }
+
 function renderAll(){ renderHeader(); renderChips(); renderEntry(); renderTable(); renderEvents(); renderWorkers(); }
 function refreshLight(){ renderChips(); renderTable(); updateMarks(); }
 function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2600); }
@@ -620,7 +648,7 @@ document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{
   inp.addEventListener("input",()=>{ if(VIEW) return; const r=state.rows[sel], k=inp.dataset.k; r[k]=inp.value.trim();
     if(k==="temp"&&r.temp&&!r.tap){ r.tap=nowHM(); document.querySelector('#entryCard input[data-k="tap"]').value=r.tap; }
     touchRow(sel); refreshLight(); });
-  if(inp.dataset.k==="worker") inp.addEventListener("change",()=>rememberWorker(inp.value.trim()));
+  if(inp.dataset.k==="worker") inp.addEventListener("change",()=>{ const v=inp.value.trim(); rememberWorker(v); workerAdding=false; renderWorkerSel(); });
 });
 document.querySelectorAll("[data-now]").forEach(b=>b.addEventListener("click",e=>{ e.preventDefault(); if(VIEW) return; const k=b.dataset.now; state.rows[sel][k]=nowHM(); document.querySelector(`#entryCard input[data-k="${k}"]`).value=state.rows[sel][k]; touchRow(sel); refreshLight(); }));
 $("matBtns").addEventListener("click",e=>{ const b=e.target.closest("[data-mat]"); if(!b||VIEW) return; const r=state.rows[sel]; r.mat = r.mat===b.dataset.mat ? "" : b.dataset.mat; touchRow(sel); renderEntry(); refreshLight(); });
@@ -633,6 +661,9 @@ $("delayBtns").addEventListener("click",e=>{ const b=e.target.closest("[data-d]"
 $("btnClearRow").onclick=async()=>{ if(await askConfirm("No."+(sel+1)+" の入力内容をクリアしますか?")){ state.rows[sel]=blankRow(); touchRow(sel); renderEntry(); refreshLight(); } };
 $("btnNext").onclick=()=>{ const r=state.rows[sel]; if(!r.worker&&sel>0&&rowHas(r)&&state.rows[sel-1].worker){ r.worker=state.rows[sel-1].worker; touchRow(sel); } selectSlot(sel+1); window.scrollTo({top:$("entryCard").offsetTop-70,behavior:"smooth"}); };
 $("btnPrev").onclick=()=>selectSlot(sel-1);
+$("workerSel").addEventListener("change",()=>{ if(VIEW) return; const v=$("workerSel").value, r=state.rows[sel];
+  if(v==="__add"){ workerAdding=true; r.worker=""; $("workerNew").value=""; touchRow(sel); renderWorkerSel(); $("workerNew").focus(); return; }
+  workerAdding=false; r.worker=v; $("workerNew").value=v; touchRow(sel); renderWorkerSel(); refreshLight(); });
 $("confirmBy").addEventListener("input",e=>{ if(VIEW) return; state.confirmBy=e.target.value.trim(); state.hu=Date.now(); save(); Sync.queue("header",""); });
 $("btnAddEv").onclick=()=>{ const ev={id:uid(),u:Date.now(),start:nowHM(),end:"",person:state.rows[sel].worker||"",content:"",action:""}; state.events.push(ev); save(); Sync.queue("event",ev.id); renderEvents(); };
 $("events").addEventListener("input",e=>{ if(VIEW) return; const box=e.target.closest(".ev"), k=e.target.dataset.ek; if(box&&k){ const ev=state.events[+box.dataset.e]; ev[k]=e.target.value; ev.u=Date.now(); save(); Sync.queue("event",ev.id); } });
@@ -1010,6 +1041,34 @@ load(todayStr()); sel=nowSlot();
 renderAll();
 if(VIEW){ $("viewBadge").hidden=false; document.title="溶解日報（閲覧用）"; document.querySelectorAll("#entryCard input,.card input").forEach(el=>el.readOnly=true); }
 Sync.status(); Sync.flush().then(()=>Sync.pull());
+const EXP={load:d=>load(d), empty:()=>!state.rows.some(rowHas)&&!liveEvents().length, name:()=>"溶解日報_"+state.date.replace(/-/g,"")+".xlsx"};
+// ---- 自動Excel出力（URL末尾に ?export=開始日..終了日 を付けて開くと、その期間の日報Excelを作って画面に埋め込む）----
+(async function(){
+  const m=/[?&]export=([^&#]*)/.exec(location.search); if(!m) return;
+  const res={ok:true,app:(typeof APP!=="undefined"?APP:"suna"),files:[],errors:[]};
+  const ymd=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`;
+  const b64=async blob=>{ const u=new Uint8Array(await blob.arrayBuffer()); let s=""; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); };
+  try{
+    const y=new Date(); y.setDate(y.getDate()-1);
+    let [a,b]=decodeURIComponent(m[1]||"").split(".."); if(!a||a==="yesterday") a=ymd(y); if(!b) b=a; if(b<a) [a,b]=[b,a];
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(a)||!/^\d{4}-\d{2}-\d{2}$/.test(b)) throw new Error("日付の形が違います: "+m[1]);
+    if(!Sync.getCfg().syncUrl) throw new Error("config.js の syncUrl が未設定です");
+    if(EXP.master) await EXP.master();
+    const months=[]; for(let t=new Date(a+"T00:00:00");ymd(t)<=b;t.setDate(t.getDate()+1)){ const mm=ymd(t).slice(0,7); if(!months.includes(mm)) months.push(mm); }
+    const ents=[], seen={};
+    for(const mm of months){ const j=await Sync.list(mm); (j.days||[]).forEach(x=>{ const k=x.date+"|"+(x.equip||""); if(x.date>=a&&x.date<=b&&!seen[k]){ seen[k]=1; ents.push(x); } }); }
+    ents.sort((p,q)=>(p.date+(p.equip||"")).localeCompare(q.date+(q.equip||"")));
+    for(const x of ents){
+      try{ EXP.load(x.date,x.equip); await Sync.pull();
+        const sb=document.getElementById("syncStat"); if(sb&&/\berr\b/.test(sb.className)) throw new Error("スプレッドシートから読み込めませんでした");
+        if(EXP.empty&&EXP.empty()) continue;
+        res.files.push({date:x.date,name:EXP.name(),b64:await b64(buildXlsx())}); }
+      catch(e){ res.errors.push(x.date+" "+(x.equip||"")+": "+(e.message||e)); } }
+  }catch(e){ res.ok=false; res.errors.push(String(e.message||e)); }
+  const u8=s=>btoa(unescape(encodeURIComponent(s))), box=document.createElement("div"); box.hidden=true;
+  res.files.forEach(f=>{ const p=document.createElement("pre"); p.className="xf"; p.setAttribute("data-d",f.date); p.setAttribute("data-n",u8(f.name)); p.textContent=f.b64; box.appendChild(p); });
+  box.id="exportResult"; box.setAttribute("data-ok",res.ok?"1":"0"); box.setAttribute("data-err",u8(res.errors.join("\n"))); document.body.appendChild(box); document.title="EXPORT_DONE";
+})();
 })();
 </script>
 </body>
