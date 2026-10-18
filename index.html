@@ -238,6 +238,37 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
  input::placeholder{font-size:16px}
  .g-cond{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
 }
+/* v10: 材質の色分け・予定 */
+.chip.m-FC200{background:#d6e6ff;border-color:#2f6fdb;color:#123f8c}
+.chip.m-FC250{background:#d3f2dc;border-color:#21945a;color:#0c5a32}
+.chip.m-otherH{background:#fff0b3;border-color:#c99a00;color:#6b5000}
+.chip.m-otherL{background:#ffd9ea;border-color:#d0457f;color:#8a1f4f}
+.chip.plan{border-style:dashed;opacity:.8}
+.chip.done{border-width:3px}
+.chips32 .chip small{font-weight:bold;color:inherit}
+.mat button.m-FC200,.mat button[data-mat="FC200"].on,.mat button[data-mat="FC200"].planned{--mc:#2f6fdb;--mb:#d6e6ff}
+.mat button[data-mat="FC250"]{--mc:#21945a;--mb:#d3f2dc}
+.mat button[data-mat="otherH"]{--mc:#c99a00;--mb:#fff0b3}
+.mat button[data-mat="otherL"]{--mc:#d0457f;--mb:#ffd9ea}
+.mat button[data-mat="FC200"]{--mc:#2f6fdb;--mb:#d6e6ff}
+.mat button{border-left:6px solid var(--mc,#ccc)}
+.mat button.on{background:var(--mc)!important;border-color:var(--mc)!important;color:#fff}
+.mat button.on .id{color:#fff}
+.mat button.planned{background:var(--mb);border-style:dashed;border-color:var(--mc)}
+.lg-m{padding:2px 10px;border-radius:6px;border:2px solid;font-weight:bold}
+.lg-m.m-FC200{background:#d6e6ff;border-color:#2f6fdb;color:#123f8c}.lg-m.m-FC250{background:#d3f2dc;border-color:#21945a;color:#0c5a32}
+.lg-m.m-otherH{background:#fff0b3;border-color:#c99a00;color:#6b5000}.lg-m.m-otherL{background:#ffd9ea;border-color:#d0457f;color:#8a1f4f}
+.h2row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.planbtn{font-size:15px;min-height:42px;padding:6px 12px;background:#fff7ec;border-color:#e0a050;font-weight:bold}
+.plrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+.plrow .pmat button{min-height:44px;font-weight:bold;padding:6px 10px}
+.plrow .pmat button.m-FC200.on{background:#2f6fdb;color:#fff;border-color:#2f6fdb}.plrow .pmat button.m-FC250.on{background:#21945a;color:#fff;border-color:#21945a}
+.plrow .pmat button.m-otherH.on{background:#c99a00;color:#fff;border-color:#c99a00}.plrow .pmat button.m-otherL.on{background:#d0457f;color:#fff;border-color:#d0457f}
+.plrow .pcnt{display:flex;align-items:center;gap:6px}.plrow .pcnt b{font-size:22px;min-width:32px;text-align:center}
+.plrow .pcnt button{min-width:48px;font-size:22px;font-weight:bold}
+.plrow .prng{min-width:90px}.plrow .pdel{margin-left:auto}
+.legend .id::before,.legend .lg-m::before,.legend .lg-txt::before{display:none}
+.legend{font-size:14px;align-items:center}
 </style>
 </head>
 <body>
@@ -274,10 +305,10 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
   </section>
 
   <section class="card">
-    <h2>チャージを選択 <span class="id">Pilih muatan (Tungku peleburan)</span></h2>
+    <h2 class="h2row"><span>チャージを選択 <span class="id">Pilih muatan (Tungku peleburan)</span></span><button id="btnPlan" class="planbtn">材質の予定を入れる <span class="id">Rencana bahan</span></button></h2>
     <div class="chips32" id="chips"></div>
     <div class="legend">
-      <span class="lg-ok">入力済 <span class="id">Selesai</span></span>
+      <span class="lg-m m-FC200">FC200</span><span class="lg-m m-FC250">FC250</span><span class="lg-m m-otherH">その他H</span><span class="lg-m m-otherL">その他L</span><span class="lg-txt">✓＝入力済 <span class="id">Selesai</span>　点線＝予定 <span class="id">Rencana</span></span>
       <span class="lg-ng">NG</span>
       <span class="lg-melt">遅れ：溶解工程 <span class="id">Terlambat: Peleburan</span></span>
       <span class="lg-pour">遅れ：注湯工程 <span class="id">Terlambat: Penuangan</span></span>
@@ -308,7 +339,7 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
       <div class="grid g-mix">
         <label class="f">銑鉄 <span class="id">SENTETSU</span><input class="calc" data-k="sen" data-calc="1" readonly inputmode="none"></label>
         <label class="f">鋼鉄 <span class="id">SINDAN BARA</span><input class="calc" data-k="kou" data-calc="1" readonly inputmode="none"></label>
-        <label class="f">戻り材 <span class="id">SEKI</span><input class="calc" data-k="mod" data-calc="1" readonly inputmode="none"></label>
+        <label class="f">戻り材 <span class="id">SEKI</span><input class="calc" data-k="mod" data-calc="1" readonly inputmode="none" placeholder="自動で700"></label>
         <label class="f">加炭材 <span class="id">karbon</span><input class="calc" data-k="kat" data-calc="1" readonly inputmode="none"></label>
         <label class="f">シリコン <span class="id">silikon</span><input class="calc" data-k="sil" data-calc="1" readonly inputmode="none"></label>
         <label class="f">C追加 <span class="id">Tambah C</span><input class="calc" data-k="addC" data-calc="1" readonly inputmode="none" placeholder="タップで電卓"></label>
@@ -419,6 +450,15 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
   </div>
 </div></dialog>
 
+<dialog id="dlgPlan"><div class="dlg">
+  <h3 style="margin-bottom:6px">材質の予定（予約） <span class="id">Rencana bahan</span></h3>
+  <div class="small">何番のチャージから、どの材質を何チャージ行うかを上から順に入れます。予定のチャージは一番上の表で点線の色で表示され、そのチャージの入力を始めると材質が自動で選ばれます（あとから変更できます）。<br><span class="id">Bahan dipilih otomatis saat mulai input.</span></div>
+  <label class="f" style="max-width:220px;margin-top:10px">開始するチャージ番号 <span class="id">Mulai dari no.</span><input id="planStart" type="number" min="1" max="32" inputmode="numeric"></label>
+  <div id="planRows" style="margin-top:10px"></div>
+  <button id="btnPlanAdd" style="margin-top:6px">＋ 材質を追加 <span class="id">Tambah</span></button>
+  <div id="planInfo" class="small" style="margin:10px 0;font-weight:bold"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button id="btnPlanClear">予定を全部消す</button><button id="btnPlanClose">閉じる</button><button id="btnPlanSave" class="pri">保存 <span class="id" style="color:#fff">Simpan</span></button></div>
+</div></dialog>
 <dialog id="dlgSettings"><div class="dlg">
   <h3>設定</h3>
   <div class="t" style="font-weight:bold;margin:8px 0">製造条件の規格（自動判定） <span class="id">Standar kondisi produksi</span></div>
@@ -525,7 +565,7 @@ function specOf(r,k){ const m=k==="temp"?{temp:SPEC.temp}:SPEC[r.mat]; if(!m) re
 function cls(r,k){ const n=num(r[k]), s=specOf(r,k); if(n==null||!s) return ""; return (n<s.min||n>s.max)?"ng":"ok"; }
 function autoJ(r){ let any=false, ng=false; CHK.forEach(k=>{ const c=cls(r,k); if(c) any=true; if(c==="ng") ng=true; }); return ng?"NG":(any?"OK":""); }
 function judgeOf(r){ return r.jm? r.judge : autoJ(r); }
-function rowHas(r){ return ["st","mat","sen","kou","dar","drM","drType","drKg","mod","kat","sil","add","addC","addSi","addSc","ce","c","si","ten","temp","tap","dem","worker","delay"].some(k=>(r[k]||"")!=="") || r.jm; }
+function rowHas(r){ if(r.st!==""&&r.stAuto&&rowHas(Object.assign({},r,{st:"",stAuto:false}))===false) return false; return ["st","mat","sen","kou","dar","drM","drType","drKg","mod","kat","sil","add","addC","addSi","addSc","ce","c","si","ten","temp","tap","dem","worker","delay"].some(k=>(r[k]||"")!=="") || r.jm; }
 function tmin(t){ if(!t) return null; const m=/^(\d{1,2}):(\d{2})/.exec(t); return m? (+m[1])*60+(+m[2]) : null; }
 function elapsed(r){ const a=tmin(r.st), b=tmin(r.tap); if(a==null||b==null) return null; let d=b-a; if(d<0) d+=1440; return d; }
 function fmtNum(n){ return Math.round(n*1000)/1000+""; }
@@ -546,10 +586,11 @@ function specText(){
 }
 
 // ---- 描画 ----
-function chipClass(r){ if(r.delay==="melt") return "melt"; if(r.delay==="pour") return "pour"; if(judgeOf(r)==="NG") return "ng"; return rowHas(r)?"filled":""; }
+function chipClass(r){ if(r.delay==="melt") return "melt"; if(r.delay==="pour") return "pour"; if(judgeOf(r)==="NG") return "ng"; const m=r.mat||r.plan; if(m) return "m-"+m+(rowHas(r)?" done":" plan"); return rowHas(r)?"filled":""; }
+const MSHORT={FC200:"FC200",FC250:"FC250",otherH:"他H",otherL:"他L"};
 function renderChips(){
   const ns = state.date===todayStr()? nowSlot() : -1;
-  $("chips").innerHTML=state.rows.map((r,i)=>`<button class="chip ${chipClass(r)} ${TP.has(i+1)?"tp":""} ${i===sel?"sel":""} ${i===ns?"now":""}" data-i="${i}">${i+1}<small>${SCHED[i]}</small></button>`).join("");
+  $("chips").innerHTML=state.rows.map((r,i)=>`<button class="chip ${chipClass(r)} ${TP.has(i+1)?"tp":""} ${i===sel?"sel":""} ${i===ns?"now":""}" data-i="${i}">${i+1}<small>${(r.mat||r.plan)?(rowHas(r)?"✓":"")+(MSHORT[r.mat||r.plan]||matL(r.mat||r.plan)):"&nbsp;"}</small></button>`).join("");
 }
 function renderHeader(){ $("date").value=state.date; $("confirmBy").value=state.confirmBy; $("specLine").innerHTML=specText(); }
 const PREVK={ce:"",c:"",si:"",kat:" kg",sil:" kg"};
@@ -576,7 +617,7 @@ function renderEntry(){
   document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{ const k=inp.dataset.k; inp.value=r[k]||"";
     if(k in PREVK){ const pv=prevVal(sel,k); inp.placeholder = pv ? `前回 ${pv}${PREVK[k]}` : (k==="kat"||k==="sil"?"タップで電卓":(inp.dataset.pad?"タップで入力":"")); }
     if(k==="worker"&&!r.worker){ const p=sel>0?state.rows[sel-1].worker:""; inp.placeholder=p?"前回 "+p:"氏名 / nama"; } });
-  document.querySelectorAll("#matBtns button").forEach(b=>b.classList.toggle("on",b.dataset.mat===r.mat));
+  document.querySelectorAll("#matBtns button").forEach(b=>{ b.classList.toggle("on",b.dataset.mat===r.mat); b.classList.toggle("planned",!r.mat&&b.dataset.mat===r.plan); });
   renderDarai();
   workerAdding=false; renderWorkerSel();
   updateMarks();
@@ -637,7 +678,15 @@ function askConfirm(msg){ return new Promise(res=>{ const d=$("dlgConfirm"); $("
   $("cfYes").onclick=()=>done(true); $("cfNo").onclick=()=>done(false); d.onclose=()=>done(false); d.showModal(); }); }
 function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
 function selectSlot(i){ sel=(i+N)%N; renderChips(); renderEntry(); renderTable(); }
-function touchRow(i){ if(VIEW) return; state.rows[i].u=Date.now(); save(); Sync.queue("row",i); }
+const MOD0=String((window.SUNA_CONFIG&&window.SUNA_CONFIG.modKg)||700), NEXT_MIN=5;
+function addMin(hm,m){ const x=/^(\d{1,2}):(\d{2})$/.exec(hm||""); if(!x) return ""; const t=((+x[1])*60+(+x[2])+m)%1440; return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
+function touchRow(i){ if(VIEW) return; const r=state.rows[i];
+  if(!r.init&&rowHas(r)){ r.init=true; let ch=false; if((r.mod||"")===""){ r.mod=MOD0; ch=true; } if(!r.mat&&r.plan){ r.mat=r.plan; ch=true; } if(ch&&i===sel) setTimeout(()=>{ renderEntry(); refreshLight(); },0); }
+  r.u=Date.now(); save(); Sync.queue("row",i); chainNext(i); }
+// 出湯時刻 + 5分 → 次のチャージの開始時刻（手で入れた開始時刻は上書きしない）
+function chainNext(i){ const r=state.rows[i]; if(i+1>=N||!r.tap) return; const n=state.rows[i+1], t=addMin(r.tap,NEXT_MIN); if(!t) return;
+  if((n.st===""||n.stAuto)&&n.st!==t){ n.st=t; n.stAuto=true; n.u=Date.now(); save(); Sync.queue("row",i+1); } }
+function touchPlan(i){ if(VIEW) return; state.rows[i].u=Date.now(); save(); Sync.queue("row",i); }
 function rememberWorker(w){ if(w&&!workers.includes(w)){ workers.unshift(w); workers=workers.slice(0,40); LS.set(APP+":workers",workers); renderWorkers(); } }
 
 // ---- 入力 ----
@@ -645,12 +694,12 @@ $("chips").addEventListener("click",e=>{ const b=e.target.closest(".chip"); if(b
 $("tbody").addEventListener("click",e=>{ const tr=e.target.closest("tr[data-i]"); if(tr){ selectSlot(+tr.dataset.i); $("entryCard").scrollIntoView({behavior:"smooth",block:"start"}); } });
 document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{
   if(inp.dataset.calc||inp.dataset.pad) return;
-  inp.addEventListener("input",()=>{ if(VIEW) return; const r=state.rows[sel], k=inp.dataset.k; r[k]=inp.value.trim();
+  inp.addEventListener("input",()=>{ if(VIEW) return; const r=state.rows[sel], k=inp.dataset.k; r[k]=inp.value.trim(); if(k==="st") r.stAuto=false;
     if(k==="temp"&&r.temp&&!r.tap){ r.tap=nowHM(); document.querySelector('#entryCard input[data-k="tap"]').value=r.tap; }
     touchRow(sel); refreshLight(); });
   if(inp.dataset.k==="worker") inp.addEventListener("change",()=>{ const v=inp.value.trim(); rememberWorker(v); workerAdding=false; renderWorkerSel(); });
 });
-document.querySelectorAll("[data-now]").forEach(b=>b.addEventListener("click",e=>{ e.preventDefault(); if(VIEW) return; const k=b.dataset.now; state.rows[sel][k]=nowHM(); document.querySelector(`#entryCard input[data-k="${k}"]`).value=state.rows[sel][k]; touchRow(sel); refreshLight(); }));
+document.querySelectorAll("[data-now]").forEach(b=>b.addEventListener("click",e=>{ e.preventDefault(); if(VIEW) return; const k=b.dataset.now; state.rows[sel][k]=nowHM(); if(k==="st") state.rows[sel].stAuto=false; document.querySelector(`#entryCard input[data-k="${k}"]`).value=state.rows[sel][k]; touchRow(sel); refreshLight(); }));
 $("matBtns").addEventListener("click",e=>{ const b=e.target.closest("[data-mat]"); if(!b||VIEW) return; const r=state.rows[sel]; r.mat = r.mat===b.dataset.mat ? "" : b.dataset.mat; touchRow(sel); renderEntry(); refreshLight(); });
 document.querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{ if(VIEW) return; const r=state.rows[sel], v=b.dataset.j; if(v==="auto"){ r.jm=false; r.judge=""; } else { r.jm=true; r.judge=v; } touchRow(sel); refreshLight(); });
 $("drTypes").addEventListener("click",e=>{ const b=e.target.closest("[data-dt]"); if(!b||VIEW) return; const r=state.rows[sel]; const t=b.dataset.dt;
@@ -669,6 +718,30 @@ $("btnAddEv").onclick=()=>{ const ev={id:uid(),u:Date.now(),start:nowHM(),end:""
 $("events").addEventListener("input",e=>{ if(VIEW) return; const box=e.target.closest(".ev"), k=e.target.dataset.ek; if(box&&k){ const ev=state.events[+box.dataset.e]; ev[k]=e.target.value; ev.u=Date.now(); save(); Sync.queue("event",ev.id); } });
 $("events").addEventListener("click",async e=>{ const d=e.target.dataset.del; if(d!=null && await askConfirm("この記録を削除しますか?")){ const ev=state.events[+d]; ev.del=true; ev.u=Date.now(); save(); Sync.queue("event",ev.id); renderEvents(); } });
 $("date").addEventListener("change",()=>{ const d=$("date").value; if(!d) return; load(d); sel= d===todayStr()?nowSlot():0; renderAll(); Sync.pull(); });
+
+// ---- 材質の予定（予約） ----
+let planSegs=[], planStart=0;
+function planFromRows(){ const rs=state.rows; let i=rs.findIndex(r=>r.plan); if(i<0){ planStart=Math.max(0,rs.findIndex(r=>!rowHas(r))); planSegs=[{m:"FC200",n:1}]; return; }
+  planStart=i; planSegs=[]; while(i<N&&rs[i].plan){ const m=rs[i].plan; let n=0; while(i<N&&rs[i].plan===m){ n++; i++; } planSegs.push({m,n}); } }
+function renderPlan(){ let s=planStart; const used=planSegs.reduce((a,x)=>a+x.n,0);
+  $("planStart").value=planStart+1;
+  $("planRows").innerHTML=planSegs.map((x,j)=>{ const a=s+1, b=Math.min(N,s+x.n); s+=x.n;
+    return `<div class="plrow"><div class="seg pmat">${MATS.map(([m,l])=>`<button data-pm="${j}" data-m="${m}" class="m-${m} ${x.m===m?"on":""}">${l}</button>`).join("")}</div>
+      <div class="pcnt"><button data-pd="${j}" data-v="-1">－</button><b>${x.n}</b><span class="small">チャージ</span><button data-pd="${j}" data-v="1">＋</button></div>
+      <div class="small prng">${a<=N?`${a}〜${b} 番`:"（32番を超えています）"}</div><button data-px="${j}" class="pdel">削除</button></div>`; }).join("");
+  $("planInfo").textContent = planStart+used>N ? `⚠ 合計が32チャージを超えています（${planStart+used}番まで）` : `${planStart+1}番〜${planStart+used}番に予定を入れます`; }
+$("btnPlan").onclick=()=>{ if(VIEW) return; planFromRows(); renderPlan(); $("dlgPlan").showModal(); };
+$("planStart").addEventListener("change",()=>{ const v=Math.round(num($("planStart").value)||1); planStart=Math.min(N,Math.max(1,v))-1; renderPlan(); });
+$("planRows").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; e.preventDefault();
+  if(b.dataset.pm!=null) planSegs[+b.dataset.pm].m=b.dataset.m;
+  else if(b.dataset.pd!=null){ const x=planSegs[+b.dataset.pd]; x.n=Math.max(1,Math.min(N,x.n+(+b.dataset.v))); }
+  else if(b.dataset.px!=null) planSegs.splice(+b.dataset.px,1);
+  renderPlan(); });
+$("btnPlanAdd").onclick=e=>{ e.preventDefault(); const last=planSegs[planSegs.length-1]; const nm=MATS.map(x=>x[0]).find(m=>!last||m!==last.m)||"FC200"; planSegs.push({m:nm,n:1}); renderPlan(); };
+function applyPlan(list){ state.rows.forEach((r,i)=>{ const v=list[i]||""; if((r.plan||"")!==v){ r.plan=v; touchPlan(i); } }); renderAll(); }
+$("btnPlanSave").onclick=e=>{ e.preventDefault(); const list=new Array(N).fill(""); let s=planStart; planSegs.forEach(x=>{ for(let k=0;k<x.n&&s<N;k++,s++) list[s]=x.m; }); applyPlan(list); $("dlgPlan").close(); toast("予定を保存しました"); };
+$("btnPlanClear").onclick=async e=>{ e.preventDefault(); if(!await askConfirm("材質の予定をすべて消しますか？（入力済みの材質は消えません）")) return; applyPlan([]); $("dlgPlan").close(); };
+$("btnPlanClose").onclick=e=>{ e.preventDefault(); $("dlgPlan").close(); };
 
 // ---- 電卓 ----
 let calc={k:null,list:[],cur:"",orig:"",warned:false};
