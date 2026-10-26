@@ -246,6 +246,12 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
 .chip.plan{border-style:dashed;opacity:.8}
 .chip.done{border-width:3px}
 .chips32 .chip small{font-weight:bold;color:inherit}
+/* v15: スマホ・管理者アプリの中でもチャージ選択がはみ出さないように */
+.chips32{grid-template-columns:repeat(16,minmax(0,1fr))}
+.chips32 .chip{min-width:0;padding:4px 2px;overflow:hidden}
+.chips32 .chip small{white-space:nowrap;overflow:hidden;text-overflow:clip;letter-spacing:-.3px}
+@media (max-width:900px){ .chips32{grid-template-columns:repeat(8,minmax(0,1fr))} }
+@media (max-width:520px){ .chips32{grid-template-columns:repeat(6,minmax(0,1fr));gap:5px} .chips32 .chip{font-size:16px;min-height:50px} .chips32 .chip small{font-size:11px} }
 .mat button.m-FC200,.mat button[data-mat="FC200"].on,.mat button[data-mat="FC200"].planned{--mc:#2f6fdb;--mb:#d6e6ff}
 .mat button[data-mat="FC250"]{--mc:#21945a;--mb:#d3f2dc}
 .mat button[data-mat="otherH"]{--mc:#c99a00;--mb:#fff0b3}
@@ -326,7 +332,6 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
   <section class="card" id="entryCard">
     <div class="eh">
       <div class="bigno" id="bigNo">1</div>
-      <div><div class="small">開始予定時刻 <span class="id">Waktu mulai terjadwal</span></div><div style="font-size:22px;font-weight:bold" id="schedTime">8:00</div></div>
       <span class="tpmark" id="tpMark" hidden>◯ 成分TP採取 <span class="id">Ambil sampel TP</span></span>
       <span class="sp" style="flex:1"></span>
       <button id="btnClearRow">このチャージをクリア</button>
@@ -410,7 +415,7 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
     <div class="tbl-wrap">
       <table style="min-width:1300px">
         <thead>
-          <tr><th rowspan="2">溶炉</th><th rowspan="2">開始<br>予定</th><th rowspan="2">開始<br>時刻</th><th rowspan="2">材質</th><th colspan="9">配合履歴 (kg)</th><th colspan="7">製造条件</th><th rowspan="2">所要<br>(分)</th><th rowspan="2">判定</th><th rowspan="2">作業者</th></tr>
+          <tr><th rowspan="2">溶炉</th><th rowspan="2">開始<br>時刻</th><th rowspan="2">材質</th><th colspan="9">配合履歴 (kg)</th><th colspan="7">製造条件</th><th rowspan="2">所要<br>(分)</th><th rowspan="2">判定</th><th rowspan="2">作業者</th></tr>
           <tr><th>銑鉄</th><th>鋼鉄</th><th>ダライ粉<br><span class="id">岡本 / 2種類目</span></th><th>戻り材</th><th>加炭材</th><th>シリコン</th><th>C追加</th><th>Si追加</th><th>スクラップ<br>追加</th><th>CE</th><th>C</th><th>Si</th><th>引張強度</th><th>出湯温度</th><th>出湯時刻</th><th>デマンド</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -627,7 +632,7 @@ function prevVal(i,k){ for(let j=i-1;j>=0;j--){ const v=state.rows[j][k]; if(v) 
   return ""; }
 function renderEntry(){
   const r=state.rows[sel];
-  $("bigNo").textContent=sel+1; $("bigNo").className="bigno no "+(r.delay||""); $("schedTime").textContent=SCHED[sel]; $("tpMark").hidden=!TP.has(sel+1);
+  $("bigNo").textContent=sel+1; $("bigNo").className="bigno no "+(r.delay||""); $("tpMark").hidden=!TP.has(sel+1);
   document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{ const k=inp.dataset.k; inp.value=r[k]||"";
     if(k in PREVK){ const pv=prevVal(sel,k); inp.placeholder = pv ? `前回 ${pv}${PREVK[k]}` : (k==="kat"||k==="sil"?"タップで電卓":(inp.dataset.pad?"タップで入力":"")); }
     if(k==="worker"&&!r.worker){ const p=sel>0?state.rows[sel-1].worker:""; inp.placeholder=p?"前回 "+p:"氏名 / nama"; } });
@@ -655,12 +660,12 @@ function renderTable(){
   const rows=state.rows.map((r,i)=>{ MIX.forEach(k=>tot[k]+=num(r[k])||0);
     const j=judgeOf(r), e=elapsed(r), c=k=>`<td class="${cls(r,k)}">${esc(r[k])}</td>`;
     const mat=matL(r.mat);
-    return `<tr data-i="${i}" class="${i===sel?"sel":""}"><td class="no ${r.delay||""} ${TP.has(i+1)?"tpc":""}"><b>${i+1}</b></td><td>${SCHED[i]}</td><td>${esc(r.st)}</td><td>${esc(mat)}</td>`+
+    return `<tr data-i="${i}" class="${i===sel?"sel":""}"><td class="no ${r.delay||""} ${TP.has(i+1)?"tpc":""}"><b>${i+1}</b></td><td>${esc(r.st)}</td><td>${esc(mat)}</td>`+
       MIX.map(k=>k==="dar"?`<td style="white-space:nowrap;font-size:12px">${esc(drText(r))}</td>`:`<td>${esc(r[k])}</td>`).join("")+`<td>${esc(r.addC||r.add)}</td><td>${esc(r.addSi)}</td><td>${esc(r.addSc)}</td>${c("ce")}${c("c")}${c("si")}<td>${esc(r.ten)}</td>${c("temp")}<td>${esc(r.tap)}</td><td>${esc(r.dem)}</td>`+
       `<td class="${e!=null&&e>TARGET_MIN?"warn":""}">${e==null?"":e}</td><td class="${j==="NG"?"jNG":""}">${j}</td><td>${esc(r.worker)}</td></tr>`; }).join("");
   const ds=drSummary(), tsc=state.rows.reduce((a,r)=>a+(num(r.addSc)||0),0);
-  $("tbody").innerHTML=rows+`<tr class="sum"><td colspan="4">累計 (kg)<br><span class="id">Total</span></td>`+MIX.map(k=>`<td>${tot[k]?fmtNum(tot[k]):""}</td>`).join("")+`<td></td><td></td><td>${tsc?fmtNum(tsc):""}</td><td colspan="10"></td></tr>`+
-    (ds.length?`<tr class="sum"><td colspan="4">ダライ粉内訳<br><span class="id">Rincian DARAIKO</span></td><td colspan="20" style="text-align:left">${ds.map(x=>`<b>${esc(x.name)}</b> ${fmtNum(x.kg)} kg`+(x.cnt?` (${x.cnt}回)`:"")).join("　／　")}</td></tr>`:"");
+  $("tbody").innerHTML=rows+`<tr class="sum"><td colspan="3">累計 (kg)<br><span class="id">Total</span></td>`+MIX.map(k=>`<td>${tot[k]?fmtNum(tot[k]):""}</td>`).join("")+`<td></td><td></td><td>${tsc?fmtNum(tsc):""}</td><td colspan="10"></td></tr>`+
+    (ds.length?`<tr class="sum"><td colspan="3">ダライ粉内訳<br><span class="id">Rincian DARAIKO</span></td><td colspan="20" style="text-align:left">${ds.map(x=>`<b>${esc(x.name)}</b> ${fmtNum(x.kg)} kg`+(x.cnt?` (${x.cnt}回)`:"")).join("　／　")}</td></tr>`:"");
 }
 function drSummary(){ const d=DR(), m={}; const add=(n,kg,c)=>{ m[n]=m[n]||{name:n,kg:0,cnt:0}; m[n].kg+=kg; m[n].cnt+=c; };
   state.rows.forEach(r=>{ if(!drUsed(r)) return; if(r.drM) add(d.main,drMainKg(r)||0,cntOf(r,"drM")); if(r.drType&&r.drKg) add(r.drType,drOtherKg(r)||0,cntOf(r,"drKg")); });
