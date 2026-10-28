@@ -774,11 +774,14 @@ const MIXSPEC=Object.assign({sen:[0,100,"50±50"],kou:[150,250,"200±50"],mod:[6
 function mixErr(r,k,tot,has){ if(!has) return "";
   const nm={sen:"銑鉄",kou:"新断バラ（鋼鉄）",mod:"戻り材"}, msg=(n,a,v)=>`⚠ 規格外です：${n} ${fmtNum(v)}kg<br><span style="font-size:14px">規格 ${a[2]}kg（${a[0]}〜${a[1]}kg）。数値を確認してください / Di luar standar</span>`;
   if(MIXSPEC[k]&&nm[k]){ const a=MIXSPEC[k]; return (tot<a[0]||tot>a[1])?msg(nm[k],a,tot):""; }
-  if(k==="drM"||k==="drKg"){ const a=MIXSPEC.dar, other=k==="drM"?(r.drType?num(r.drKg):null):num(r.drM), sum=(other||0)+tot;
+  if(false&&(k==="drM"||k==="drKg")){ const a=MIXSPEC.dar, other=k==="drM"?(r.drType?num(r.drKg):null):num(r.drM), sum=(other||0)+tot;
     if(sum>a[1]) return msg("ダライ粉の合計",a,sum);
     const full=k==="drKg"||!r.drType||other!=null;
     if(full&&sum<a[0]) return msg("ダライ粉の合計",a,sum)+(k==="drM"&&!r.drType?`<br><span style="font-size:13px;font-weight:normal">2種類目も使うときは、先に2種類目を選んでから入れてください</span>`:"");
   } return ""; }
+// ダライ粉の合計（止めずに知らせるだけ）
+function darNote(r,k,tot){ if(k!=="drM"&&k!=="drKg") return ""; const a=MIXSPEC.dar, other=k==="drM"?(r.drType?num(r.drKg):null):num(r.drM), sum=(other||0)+tot;
+  return (sum<a[0]||sum>a[1])?`ダライ粉の合計 ${fmtNum(sum)}kg（規格 ${a[2]}kg：${a[0]}〜${a[1]}kg）※投入の途中なら、そのまま確定してOK`:""; }
 function setErr(html){ const m=$("calcMust"); m.classList.toggle("show",!!html); m.innerHTML=html||""; }
 function calcTotal(){ return calc.list.reduce((a,b)=>a+b,0)+(num(calc.cur)||0); }
 function renderCalc(){ $("calcList").innerHTML=calc.list.length?calc.list.map((v,i)=>`<span data-ci="${i}" title="タップで削除">${fmtNum(v)} ✕</span>`).join(""):'<span class="id" style="background:none;cursor:default">まだ追加なし / Belum ada</span>';
@@ -789,7 +792,7 @@ function renderCalc(){ $("calcList").innerHTML=calc.list.length?calc.list.map((v
     else if(calc.k==="drM"&&r.drType){ other=num(r.drKg); lbl=`${DR().main}（この電卓）＋ ${r.drType}（入力済 ${fmtNum(other||0)}kg）`; }
     ds.hidden=(lbl===""); if(lbl) ds.innerHTML=`<div class="small">ダライ粉の合計 <span class="id">Total daraiko</span>　${esc(lbl)}</div><b>${fmtNum((other||0)+calcTotal())}</b> kg`; }
   const n=calc.list.length+(num(calc.cur)!=null?1:0), mx=calc.k==="drKg"?drMax(state.rows[sel].drType):null, tt=calcTotal();
-  $("calcWarn").textContent = (mx!=null&&tt>mx)? `⚠ 上限 ${mx}kg を ${fmtNum(tt-mx)}kg 超えています（${fmtNum(tt)}kg）。岡本を減らしてください / Kurangi Okamoto` : (n?`${n}回 / ${n} kali`:""); $("calcWarn").style.color=(mx!=null&&tt>mx)?"#d50000":"var(--sub)"; }
+  $("calcWarn").textContent = (mx!=null&&tt>mx)? `⚠ 上限 ${mx}kg を ${fmtNum(tt-mx)}kg 超えています（${fmtNum(tt)}kg）。岡本を減らしてください / Kurangi Okamoto` : (n?`${n}回 / ${n} kali`:"")+((mx==null||tt<=mx)&&darNote(state.rows[sel],calc.k,tt)?`　⚠ ${darNote(state.rows[sel],calc.k,tt)}`:""); $("calcWarn").style.color=(mx!=null&&tt>mx)?"#d50000":(darNote(state.rows[sel],calc.k,tt)?"#b26a00":"var(--sub)"); }
 function openCalc(k){ if(VIEW) return; const r=state.rows[sel]; if(k==="drKg"&&!r.drType){ toast("先に2種類目のダライ粉を選んでください"); return; } calc.k=k; const expr=(r.calc&&r.calc[k])||"";
   calc.list = expr ? expr.split("+").map(num).filter(v=>v!=null) : (num(r[k])!=null?[num(r[k])]:[]); calc.cur=""; calc.orig=calc.list.map(fmtNum).join("+"); calc.warned=false; setMust(false);
   $("calcTitle").textContent=`No.${sel+1}　${k==="drKg"?"ダライ粉 "+(r.drType||"2種類目")+(drMax(r.drType)!=null?`（上限 ${drMax(r.drType)}kg）`:""):k==="drM"?"ダライ粉 "+DR().main:MIXL[k]} (kg)${MIXSPEC[k]?`　規格 ${MIXSPEC[k][2]}`:((k==="drM"||k==="drKg")?`　合計の規格 ${MIXSPEC.dar[2]}`:"")}`; renderCalc(); $("dlgCalc").showModal(); }
@@ -814,6 +817,7 @@ document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e
     r[calc.k]=calc.list.length?fmtNum(tot):""; r.calc=r.calc||{}; r.calc[calc.k]=calc.list.length>1?calc.list.map(fmtNum).join("+"):"";
     if(calc.k==="drKg"||calc.k==="drM") drSync(r);
     if(overMx!=null&&overT>overMx) setTimeout(()=>alertOver(r.drType,overMx,overT),50);
+    else { const dn=darNote(r,calc.k,tot); if(dn) toast("⚠ "+dn.replace(/※.*$/,"")+"　あとで確認してください"); }
     $("dlgCalc").close(); touchRow(sel); renderEntry(); refreshLight(); return; }
   renderCalc(); });
 // ---- 数字キー (製造条件) ----
