@@ -769,6 +769,17 @@ let DIGS=LS.get(APP+":digits",{});
 function digOf(k){ return (k in DIGS)?DIGS[k]:(DIG_DEF[k]||0); }
 function calcDirty(){ return calc.cur!=="" || calc.list.map(fmtNum).join("+")!==calc.orig; }
 function setMust(on){ $("calcMust").classList.toggle("show",on); $("calcMust").innerHTML=on?"⚠ 「確定」を押してください / Tekan Tetapkan<br><span style=\"font-size:13px;font-weight:normal\">取り消すときは、もう一度「閉じる」</span>":""; }
+// 原材料配合の規格（kg）：銑鉄 50±50 ／ 新断バラ(鋼鉄) 200±50 ／ 戻り材 700±50 ／ ダライ粉（岡本＋2種類目の合計） 750±50
+const MIXSPEC=Object.assign({sen:[0,100,"50±50"],kou:[150,250,"200±50"],mod:[650,750,"700±50"],dar:[700,800,"750±50"]},(window.SUNA_CONFIG||{}).mixSpec||{});
+function mixErr(r,k,tot,has){ if(!has) return "";
+  const nm={sen:"銑鉄",kou:"新断バラ（鋼鉄）",mod:"戻り材"}, msg=(n,a,v)=>`⚠ 規格外です：${n} ${fmtNum(v)}kg<br><span style="font-size:14px">規格 ${a[2]}kg（${a[0]}〜${a[1]}kg）。数値を確認してください / Di luar standar</span>`;
+  if(MIXSPEC[k]&&nm[k]){ const a=MIXSPEC[k]; return (tot<a[0]||tot>a[1])?msg(nm[k],a,tot):""; }
+  if(k==="drM"||k==="drKg"){ const a=MIXSPEC.dar, other=k==="drM"?(r.drType?num(r.drKg):null):num(r.drM), sum=(other||0)+tot;
+    if(sum>a[1]) return msg("ダライ粉の合計",a,sum);
+    const full=k==="drKg"||!r.drType||other!=null;
+    if(full&&sum<a[0]) return msg("ダライ粉の合計",a,sum)+(k==="drM"&&!r.drType?`<br><span style="font-size:13px;font-weight:normal">2種類目も使うときは、先に2種類目を選んでから入れてください</span>`:"");
+  } return ""; }
+function setErr(html){ const m=$("calcMust"); m.classList.toggle("show",!!html); m.innerHTML=html||""; }
 function calcTotal(){ return calc.list.reduce((a,b)=>a+b,0)+(num(calc.cur)||0); }
 function renderCalc(){ $("calcList").innerHTML=calc.list.length?calc.list.map((v,i)=>`<span data-ci="${i}" title="タップで削除">${fmtNum(v)} ✕</span>`).join(""):'<span class="id" style="background:none;cursor:default">まだ追加なし / Belum ada</span>';
   const dg=digOf(calc.k); $("calcDig").innerHTML=[0,1,2,3,4].map(n=>`<button data-dg="${n}" class="${n===dg?"on":""}">${n?n+"桁":"なし"}</button>`).join("");
@@ -781,13 +792,14 @@ function renderCalc(){ $("calcList").innerHTML=calc.list.length?calc.list.map((v
   $("calcWarn").textContent = (mx!=null&&tt>mx)? `⚠ 上限 ${mx}kg を ${fmtNum(tt-mx)}kg 超えています（${fmtNum(tt)}kg）。岡本を減らしてください / Kurangi Okamoto` : (n?`${n}回 / ${n} kali`:""); $("calcWarn").style.color=(mx!=null&&tt>mx)?"#d50000":"var(--sub)"; }
 function openCalc(k){ if(VIEW) return; const r=state.rows[sel]; if(k==="drKg"&&!r.drType){ toast("先に2種類目のダライ粉を選んでください"); return; } calc.k=k; const expr=(r.calc&&r.calc[k])||"";
   calc.list = expr ? expr.split("+").map(num).filter(v=>v!=null) : (num(r[k])!=null?[num(r[k])]:[]); calc.cur=""; calc.orig=calc.list.map(fmtNum).join("+"); calc.warned=false; setMust(false);
-  $("calcTitle").textContent=`No.${sel+1}　${k==="drKg"?"ダライ粉 "+(r.drType||"2種類目")+(drMax(r.drType)!=null?`（上限 ${drMax(r.drType)}kg）`:""):k==="drM"?"ダライ粉 "+DR().main:MIXL[k]} (kg)`; renderCalc(); $("dlgCalc").showModal(); }
+  $("calcTitle").textContent=`No.${sel+1}　${k==="drKg"?"ダライ粉 "+(r.drType||"2種類目")+(drMax(r.drType)!=null?`（上限 ${drMax(r.drType)}kg）`:""):k==="drM"?"ダライ粉 "+DR().main:MIXL[k]} (kg)${MIXSPEC[k]?`　規格 ${MIXSPEC[k][2]}`:((k==="drM"||k==="drKg")?`　合計の規格 ${MIXSPEC.dar[2]}`:"")}`; renderCalc(); $("dlgCalc").showModal(); }
 document.querySelectorAll("input[data-calc]").forEach(inp=>inp.addEventListener("click",()=>openCalc(inp.dataset.k)));
 $("calcDig").addEventListener("click",e=>{ const b=e.target.closest("[data-dg]"); if(!b) return; DIGS[calc.k]=+b.dataset.dg; LS.set(APP+":digits",DIGS); renderCalc(); });
 $("dlgCalc").addEventListener("cancel",e=>{ e.preventDefault(); document.querySelector('#dlgCalc [data-key="cancel"]').click(); });
 $("calcList").addEventListener("click",e=>{ const s=e.target.closest("[data-ci]"); if(!s) return; calc.list.splice(+s.dataset.ci,1); renderCalc(); });
 document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e.target.closest("[data-key]"); if(!b) return; const k=b.dataset.key;
   if(k!=="cancel"&&calc.warned){ calc.warned=false; setMust(false); }
+  else if(k!=="ok"&&k!=="cancel"&&$("calcMust").classList.contains("show")) setErr("");
   if(/^[0-9]$/.test(k)){ if(calc.cur.length<9) calc.cur=(calc.cur==="0"?"":calc.cur)+k;
     const dg=digOf(calc.k); if(dg&&calc.cur.replace(/[^0-9]/g,"").length>=dg){ const v=num(calc.cur); if(v!=null){ calc.list.push(v); calc.cur=""; } } }
   else if(k==="."){ if(!calc.cur.includes(".")) calc.cur=(calc.cur||"0")+"."; }
@@ -796,6 +808,8 @@ document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e
   else if(k==="plus"){ const v=num(calc.cur); if(v!=null){ calc.list.push(v); calc.cur=""; } }
   else if(k==="cancel"){ if(calcDirty()&&!calc.warned){ calc.warned=true; setMust(true); return; } setMust(false); $("dlgCalc").close(); return; }
   else if(k==="ok"){ const r=state.rows[sel]; const overMx=calc.k==="drKg"?drMax(r.drType):null, overT=calcTotal();
+    { const v0=num(calc.cur), L0=v0!=null?calc.list.concat([v0]):calc.list, t0=L0.reduce((a,b)=>a+b,0), er=mixErr(r,calc.k,t0,L0.length>0);
+      if(er){ if(v0!=null){ calc.list.push(v0); calc.cur=""; } renderCalc(); setErr(er); return; } }
     const v=num(calc.cur); if(v!=null) calc.list.push(v); const tot=calc.list.reduce((a,b)=>a+b,0);
     r[calc.k]=calc.list.length?fmtNum(tot):""; r.calc=r.calc||{}; r.calc[calc.k]=calc.list.length>1?calc.list.map(fmtNum).join("+"):"";
     if(calc.k==="drKg"||calc.k==="drM") drSync(r);
