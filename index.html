@@ -481,6 +481,9 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
     <button id="btnSpecUnlock">編集する</button>
   </div>
   <div id="specEdit" style="margin-top:8px"></div>
+  <div class="t" style="font-weight:bold;margin:14px 0 6px">原材料の投入量（規格の中心） <span class="id">Jumlah bahan baku</span></div>
+  <div class="small">1チャージの投入量を入れてください。規格は「この量 ±50kg」です（±50kg は固定）。変えて保存すると、異常/変化点履歴と 4M変化点管理表に記録します。</div>
+  <div id="mixEdit"></div>
   <div class="t" style="font-weight:bold;margin:14px 0 6px">ダライ粉の設定 <span class="id">Pengaturan DARAIKO</span></div>
   <div id="drEdit"></div>
   <div id="specBtns" style="display:none;gap:8px;margin-top:8px;justify-content:flex-end"><button class="pri" id="btnSpecSave">設定を保存（全端末）</button></div>
@@ -697,10 +700,10 @@ function askConfirm(msg){ return new Promise(res=>{ const d=$("dlgConfirm"); $("
   $("cfYes").onclick=()=>done(true); $("cfNo").onclick=()=>done(false); d.onclose=()=>done(false); d.showModal(); }); }
 function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
 function selectSlot(i){ sel=(i+N)%N; renderChips(); renderEntry(); renderTable(); }
-const MOD0=String((window.SUNA_CONFIG&&window.SUNA_CONFIG.modKg)||700), NEXT_MIN=5;
+const NEXT_MIN=5; function modDefault(){ return fmtNum(mixBase().mod); }
 function addMin(hm,m){ const x=/^(\d{1,2}):(\d{2})$/.exec(hm||""); if(!x) return ""; const t=((+x[1])*60+(+x[2])+m)%1440; return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
 function touchRow(i){ if(VIEW) return; const r=state.rows[i];
-  if(!r.init&&rowHas(r)){ r.init=true; let ch=false; if((r.mod||"")===""){ r.mod=MOD0; ch=true; } if(!r.mat&&r.plan){ r.mat=r.plan; ch=true; } if(ch&&i===sel) setTimeout(()=>{ renderEntry(); refreshLight(); },0); }
+  if(!r.init&&rowHas(r)){ r.init=true; let ch=false; if((r.mod||"")===""){ r.mod=modDefault(); ch=true; } if(!r.mat&&r.plan){ r.mat=r.plan; ch=true; } if(ch&&i===sel) setTimeout(()=>{ renderEntry(); refreshLight(); },0); }
   r.u=Date.now(); save(); Sync.queue("row",i); chainNext(i); }
 // 出湯時刻 + 5分 → 次のチャージの開始時刻（手で入れた開始時刻は上書きしない）
 function chainNext(i){ const r=state.rows[i]; if(i+1>=N||!r.tap) return; const n=state.rows[i+1], t=addMin(r.tap,NEXT_MIN); if(!t) return;
@@ -770,7 +773,11 @@ function digOf(k){ return (k in DIGS)?DIGS[k]:(DIG_DEF[k]||0); }
 function calcDirty(){ return calc.cur!=="" || calc.list.map(fmtNum).join("+")!==calc.orig; }
 function setMust(on){ $("calcMust").classList.toggle("show",on); $("calcMust").innerHTML=on?"⚠ 「確定」を押してください / Tekan Tetapkan<br><span style=\"font-size:13px;font-weight:normal\">取り消すときは、もう一度「閉じる」</span>":""; }
 // 原材料配合の規格（kg）：銑鉄 50±50 ／ 新断バラ(鋼鉄) 200±50 ／ 戻り材 700±50 ／ ダライ粉（岡本＋2種類目の合計） 750±50
-const MIXSPEC=Object.assign({sen:[0,100,"50±50"],kou:[150,250,"200±50"],mod:[650,750,"700±50"],dar:[700,800,"750±50"]},(window.SUNA_CONFIG||{}).mixSpec||{});
+// 原材料の投入量：中心の量は「設定」で変更（全端末）、± は 50kg で固定
+const MIX_TOL=50, MIX_BASE0={sen:50,kou:200,mod:700,dar:750}, MIX_NAME={sen:"銑鉄",kou:"新断バラ（鋼鉄）",mod:"戻り材",dar:"ダライ粉（合計）"};
+function mixBase(){ const b=Object.assign({},MIX_BASE0,(SPEC&&SPEC.mixBase)||{}); Object.keys(b).forEach(k=>{ b[k]=num(b[k]); if(b[k]==null) b[k]=MIX_BASE0[k]; }); return b; }
+function mixRange(k){ const b=mixBase()[k]; return [Math.max(0,b-MIX_TOL),b+MIX_TOL,`${fmtNum(b)}±${MIX_TOL}`]; }
+const MIXSPEC=new Proxy({},{get:(t,k)=>(k in MIX_BASE0)?mixRange(k):undefined});
 function mixErr(r,k,tot,has){ if(!has) return "";
   const nm={sen:"銑鉄",kou:"新断バラ（鋼鉄）",mod:"戻り材"}, msg=(n,a,v)=>`⚠ 規格外です：${n} ${fmtNum(v)}kg<br><span style="font-size:14px">規格 ${a[2]}kg（${a[0]}〜${a[1]}kg）。数値を確認してください / Di luar standar</span>`;
   if(MIXSPEC[k]&&nm[k]){ const a=MIXSPEC[k]; return (tot<a[0]||tot>a[1])?msg(nm[k],a,tot):""; }
@@ -851,6 +858,9 @@ function renderSpecEdit(){
     MATS.map(([m,l])=>`<tr><td><b>${l}</b></td>`+SPECK.map(([k])=>{ const s=(matSpec(m)||{})[k]||{};
       return `<td><input data-sm="${m}" data-sk="${k}" data-sf="min" inputmode="decimal" value="${v(s.min)}" ${dis}></td><td><input data-sm="${m}" data-sk="${k}" data-sf="max" inputmode="decimal" value="${v(s.max)}" ${dis}></td>`; }).join("")+`</tr>`).join("")+`</tbody></table>`+
     `<table class="spectbl" style="margin-top:8px"><tr><td><b>出湯温度 (℃)</b><br><span class="id">全材質共通 / semua bahan</span></td><td>下限<input id="specTmin" inputmode="decimal" value="${v((SPEC.temp||{}).min)}" ${dis}></td><td>上限<input id="specTmax" inputmode="decimal" value="${v((SPEC.temp||{}).max)}" ${dis}></td></tr></table>`;
+  { const B=mixBase(); $("mixEdit").innerHTML=`<table class="spectbl"><thead><tr><th>原材料</th><th>投入量 (kg)</th><th>規格（±${MIX_TOL}kg）</th></tr></thead><tbody>`+
+      Object.keys(MIX_BASE0).map(k=>`<tr><td><b>${MIX_NAME[k]}</b></td><td><input data-mb="${k}" inputmode="decimal" value="${fmtNum(B[k])}" ${dis}></td><td>${mixRange(k)[0]}〜${mixRange(k)[1]} kg</td></tr>`).join("")+`</tbody></table>`+
+      (specUnlocked?`<label class="f" style="max-width:260px;margin-top:6px">変更した人（変化点に記録） <span class="id">Nama</span><input id="mixWho" value="${esc(LS.get(APP+":mixWho",""))}"></label>`:""); }
   const d=DR();
   $("drEdit").innerHTML=`<div class="small">2種類目のダライ粉と、1チャージあたりの上限重量 (kg)。テスト用の新しいダライ粉は「＋ 種類を追加」で増やせます。<br><span class="id">Tambah jenis baru untuk uji coba.</span></div>
    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0"><label class="f" style="max-width:220px">メイン (固定)<input id="drE_main" value="${esc(d.main)}" ${dis}></label>
@@ -875,10 +885,35 @@ $("btnSpecSave").onclick=()=>{
   ns.darai={main:$("drE_main").value.trim()||"岡本",unit:num($("drE_unit").value)||75,types};
   { const a=$("specTmin").value.trim(), b=$("specTmax").value.trim(); const tn=a===""?null:num(a), tx=b===""?null:num(b);
     if((a!==""&&tn==null)||(b!==""&&tx==null)) bad="出湯温度は数字で入れてください"; if(tn!=null&&tx!=null&&tn>tx) bad="出湯温度：下限が上限より大きいです"; ns.temp={min:tn,max:tx}; }
+  // 原材料の投入量
+  const oldB=mixBase(), newB={}, chg=[];
+  document.querySelectorAll("#mixEdit input[data-mb]").forEach(inp=>{ const k=inp.dataset.mb, n=num(inp.value); if(n==null||n<0) bad=`${MIX_NAME[k]}の投入量を数字で入れてください`; else { newB[k]=n; if(n!==oldB[k]) chg.push({k,from:oldB[k],to:n}); } });
+  ns.mixBase=Object.assign({},oldB,newB);
+  const who=(($("mixWho")||{}).value||"").trim(); if(chg.length&&!who) bad="投入量を変えたときは「変更した人」を入れてください";
   if(bad){ $("specInfo").textContent=bad; return; }
+  if(who) LS.set(APP+":mixWho",who);
+  if(chg.length) setTimeout(()=>recordMixChange(chg,who),0);
   SPEC=ns; specU=Date.now(); LS.set(APP+":spec",{spec:SPEC,u:specU}); Sync.queueSpec(SPEC,specU);
   specUnlocked=false; renderSpecEdit(); renderAll(); $("specInfo").textContent="保存しました（全端末に反映されます）"; toast("設定を保存しました");
 };
+
+// ---- 投入量を変えたとき：異常/変化点履歴と 4M変化点管理表に記録 ----
+function mixChgText(chg){ return "原材料の投入量を変更（溶解日報の設定）："+chg.map(c=>`${MIX_NAME[c.k]} ${fmtNum(c.from)}kg → ${fmtNum(c.to)}kg（規格 ${fmtNum(c.to)}±${MIX_TOL}kg）`).join("、"); }
+function recordMixChange(chg,who){ const txt=mixChgText(chg), now=nowHM();
+  // この日報の異常/変化点履歴（今日の日報を開いているとき）
+  if(state&&!VIEW&&state.date===todayStr()){ const ev={id:uid(),u:Date.now(),start:now,end:"",person:who,content:txt,action:"設定の投入量を変更し、全端末に反映"}; state.events.push(ev); save(); Sync.queue("event",ev.id); renderEvents(); }
+  // 4M変化点管理表（同じサイトの /henka/ の設定を読んで送る。送れなかったら次に開いたときに送り直す）
+  const d=new Date(), ds=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  const rec={id:"yk"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),date:ds,time:now,m4:"材料",proc:"溶解",content:txt,rdate:ds,rtime:now,result:"溶解日報の設定を変更（変更者："+who+"）",checker:"",quality:""};
+  const P=LS.get(APP+":henkaPending",[]); P.push(rec); LS.set(APP+":henkaPending",P); sendHenka(); }
+async function sendHenka(){ let P=LS.get(APP+":henkaPending",[]); if(!P.length||navigator.onLine===false) return;
+  try{ const t=await (await fetch("/henka/config.js",{cache:"no-store"})).text(); const w={}; new Function("window",t)(w); const c=w.HENKA_CONFIG||{};
+    if(!c.syncUrl){ toast("4M変化点管理表の送信先が見つかりません（あとで送り直します）"); return; }
+    const ops=P.map(r=>({type:"rec",date:r.date.slice(0,7),equip:"4M",ref:r.id,u:Date.now(),raw:r}));
+    const res=await fetch(c.syncUrl,{method:"POST",body:JSON.stringify({token:c.token||"",ops}),redirect:"follow"}); const j=await res.json(); if(!j.ok) throw new Error(j.error||"error");
+    const sent=new Set(P.map(r=>r.id)); LS.set(APP+":henkaPending",LS.get(APP+":henkaPending",[]).filter(r=>!sent.has(r.id))); toast("4M変化点管理表に記録しました");
+  }catch(e){ toast("4M変化点管理表に送れませんでした（あとで送り直します）"); } }
+setTimeout(sendHenka,3000); window.addEventListener("online",sendHenka);
 function applyServerSpec(sp,u){ if(!sp||!(u>specU)) return; SPEC=sp; specU=u; LS.set(APP+":spec",{spec:SPEC,u:specU}); renderHeader(); renderChips(); renderTable(); updateMarks(); if($("dlgSettings").open&&!specUnlocked) renderSpecEdit(); }
 $("btnSettings").onclick=()=>{ specUnlocked=false; renderSpecEdit(); $("specInfo").textContent=""; updateDirInfo(); const c=Sync.getCfg(); $("cfgUrl").value=c.syncUrl||""; $("cfgToken").value=c.token||""; $("cfgInfo").textContent=""; $("dlgSettings").showModal(); };
 $("btnSettingsClose").onclick=()=>$("dlgSettings").close();
