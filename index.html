@@ -611,7 +611,7 @@ function specText(){
 function chipClass(r){ if(r.delay==="melt") return "melt"; if(r.delay==="pour") return "pour"; if(judgeOf(r)==="NG") return "ng"; const m=r.mat||r.plan; if(m) return "m-"+m+(rowHas(r)?" done":" plan"); return rowHas(r)?"filled":""; }
 const MSHORT={FC200:"FC200",FC250:"FC250",otherH:"他H",otherL:"他L","その他SiL":"他SiL","1204":"1204"};
 function renderChips(){
-  const ns = state.date===todayStr()? nowSlot() : -1;
+  const ns = state.date===todayStr()? curCharge() : -1;
   $("chips").innerHTML=state.rows.map((r,i)=>`<button class="chip ${chipClass(r)} ${TP.has(i+1)?"tp":""} ${i===sel?"sel":""} ${i===ns?"now":""}" data-i="${i}">${i+1}<small>${(r.mat||r.plan)?(rowHas(r)?"✓":"")+(MSHORT[r.mat||r.plan]||matL(r.mat||r.plan)):"&nbsp;"}</small></button>`).join("");
 }
 function renderHeader(){ $("date").value=state.date; $("confirmBy").value=state.confirmBy; $("specLine").innerHTML=specText(); }
@@ -699,10 +699,16 @@ function askConfirm(msg){ return new Promise(res=>{ const d=$("dlgConfirm"); $("
   const done=v=>{ $("cfYes").onclick=$("cfNo").onclick=null; d.onclose=null; if(d.open) d.close(); res(v); };
   $("cfYes").onclick=()=>done(true); $("cfNo").onclick=()=>done(false); d.onclose=()=>done(false); d.showModal(); }); }
 function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
-function selectSlot(i){ sel=(i+N)%N; renderChips(); renderEntry(); renderTable(); }
+// いま作業しているチャージ：出湯していない入力中のチャージ／なければ最後に出湯したチャージの次
+let autoSel=true;
+function curCharge(){ let last=-1; state.rows.forEach((r,i)=>{ if(rowHas(r)) last=i; }); if(last<0) return 0;
+  for(let i=0;i<=last;i++){ const r=state.rows[i]; if(rowHas(r)&&!r.tap) return i; }
+  return Math.min(N-1,last+1); }
+function startSel(){ return state.date===todayStr()?curCharge():0; }
+function selectSlot(i){ autoSel=false; sel=(i+N)%N; renderChips(); renderEntry(); renderTable(); }
 const NEXT_MIN=5; function modDefault(){ return fmtNum(mixBase().mod); }
 function addMin(hm,m){ const x=/^(\d{1,2}):(\d{2})$/.exec(hm||""); if(!x) return ""; const t=((+x[1])*60+(+x[2])+m)%1440; return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
-function touchRow(i){ if(VIEW) return; const r=state.rows[i];
+function touchRow(i){ autoSel=false; if(VIEW) return; const r=state.rows[i];
   if(!r.init&&rowHas(r)){ r.init=true; let ch=false; if((r.mod||"")===""){ r.mod=modDefault(); ch=true; } if(!r.mat&&r.plan){ r.mat=r.plan; ch=true; } if(ch&&i===sel) setTimeout(()=>{ renderEntry(); refreshLight(); },0); }
   r.u=Date.now(); save(); Sync.queue("row",i); chainNext(i); }
 // 出湯時刻 + 5分 → 次のチャージの開始時刻（手で入れた開始時刻は上書きしない）
@@ -739,7 +745,7 @@ $("confirmBy").addEventListener("input",e=>{ if(VIEW) return; state.confirmBy=e.
 $("btnAddEv").onclick=()=>{ const ev={id:uid(),u:Date.now(),start:nowHM(),end:"",person:state.rows[sel].worker||"",content:"",action:""}; state.events.push(ev); save(); Sync.queue("event",ev.id); renderEvents(); };
 $("events").addEventListener("input",e=>{ if(VIEW) return; const box=e.target.closest(".ev"), k=e.target.dataset.ek; if(box&&k){ const ev=state.events[+box.dataset.e]; ev[k]=e.target.value; ev.u=Date.now(); save(); Sync.queue("event",ev.id); } });
 $("events").addEventListener("click",async e=>{ const d=e.target.dataset.del; if(d!=null && await askConfirm("この記録を削除しますか?")){ const ev=state.events[+d]; ev.del=true; ev.u=Date.now(); save(); Sync.queue("event",ev.id); renderEvents(); } });
-$("date").addEventListener("change",()=>{ const d=$("date").value; if(!d) return; load(d); sel= d===todayStr()?nowSlot():0; renderAll(); Sync.pull(); });
+$("date").addEventListener("change",()=>{ const d=$("date").value; if(!d) return; load(d); autoSel=true; sel=startSel(); renderAll(); Sync.pull(); });
 
 // ---- 材質の予定（予約） ----
 let planSegs=[], planStart=0;
@@ -954,7 +960,7 @@ $("btnList").onclick=()=>{ listYM=ymOf(state.date||todayStr()); $("dlgList").sho
 $("mPrev").onclick=()=>{ listYM=ymShift(listYM,-1); renderList(); };
 $("mNext").onclick=()=>{ listYM=ymShift(listYM,1); renderList(); };
 $("mSel").onchange=e=>{ listYM=e.target.value; renderList(); };
-$("btnNewDay").onclick=()=>{ $("dlgList").close(); load(todayStr()); sel=nowSlot(); renderAll(); Sync.pull(); };
+$("btnNewDay").onclick=()=>{ $("dlgList").close(); load(todayStr()); autoSel=true; sel=startSel(); renderAll(); Sync.pull(); };
 $("savedList").addEventListener("click",e=>{ const it=e.target.closest(".list-item.open"); if(!it) return; $("dlgList").close(); load(it.dataset.d); sel=0; renderAll(); Sync.pull(); toast(fmtDay(it.dataset.d)+" を開きました"); window.scrollTo({top:0,behavior:"smooth"}); });
 
 // ---- folder handle (File System Access API) ----
@@ -1145,7 +1151,7 @@ const Sync=(function(){
       else if(it.type==="row"){ const i=+it.ref; if(!(i>=0&&i<N)) return; if((it.u||0)>(state.rows[i].u||0)){ const r=Object.assign(blankRow(),raw,{u:it.u}); ["mat","plan"].forEach(k=>{ if(OLDMAT[r[k]]) r[k]=OLDMAT[r[k]]; }); ["jOut","ngOut","elapsed","sched","tp","noro","drMain","drMainKg","drMainCnt","drOtherKg","drOtherCnt","matLabel"].forEach(x=>delete r[x]); r.calc=r.calc||{}; state.rows[i]=r; changed=true; if(i===sel) selChanged=true; } }
       else if(it.type==="event"){ const le=state.events.find(x=>x.id===it.ref); const ev=Object.assign({id:it.ref,start:"",end:"",person:"",content:"",action:""},raw,{u:it.u});
         if(!le){ state.events.push(ev); changed=true; evChanged=true; } else if((it.u||0)>(le.u||0)){ Object.assign(le,ev); changed=true; evChanged=true; } } });
-    if(changed){ save(); renderChips(); renderTable(); const act=document.activeElement, inside=s=>act&&act.closest&&act.closest(s);
+    if(changed){ save(); if(autoSel&&!VIEW&&!$("dlgCalc").open){ const ns=startSel(); if(ns!==sel){ sel=ns; selChanged=true; } } renderChips(); renderTable(); const act=document.activeElement, inside=s=>act&&act.closest&&act.closest(s);
       if(selChanged&&!inside("#entryCard")&&!$("dlgCalc").open) renderEntry(); if(evChanged&&!inside("#events")) renderEvents(); toast("他の端末の入力を読み込みました"); }
     status();
   }
@@ -1186,7 +1192,7 @@ $("btnCfgTest").onclick=async()=>{ $("cfgInfo").textContent="確認中…"; $("c
 })();
 
 // ---- init ----
-load(todayStr()); sel=nowSlot();
+load(todayStr()); sel=startSel();
 renderAll();
 if(VIEW){ $("viewBadge").hidden=false; document.title="溶解日報（閲覧用）"; document.querySelectorAll("#entryCard input,.card input").forEach(el=>el.readOnly=true); }
 Sync.status(); Sync.flush().then(()=>Sync.pull());
