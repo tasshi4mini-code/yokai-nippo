@@ -695,6 +695,10 @@ function renderWorkerSel(){ const r=state.rows[sel], w=r.worker||"", names=worke
 function renderAll(){ renderHeader(); renderChips(); renderEntry(); renderTable(); renderEvents(); renderWorkers(); }
 function refreshLight(){ renderChips(); renderTable(); updateMarks(); }
 function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2600); }
+// 出湯時刻が今より後か（日報の日付は朝8時で切りかわる）
+function tapFuture(v){ const t=todayStr(); if(state.date>t) return true; if(state.date<t) return false;
+  const m=/^(\d{1,2}):(\d{2})/.exec(v||""); if(!m) return false; const ab=x=>x<8*60?x+1440:x; const d=new Date();
+  return ab(+m[1]*60+(+m[2]))>ab(d.getHours()*60+d.getMinutes())+1; }
 function askConfirm(msg){ return new Promise(res=>{ const d=$("dlgConfirm"); $("cfMsg").textContent=msg;
   const done=v=>{ $("cfYes").onclick=$("cfNo").onclick=null; d.onclose=null; if(d.open) d.close(); res(v); };
   $("cfYes").onclick=()=>done(true); $("cfNo").onclick=()=>done(false); d.onclose=()=>done(false); d.showModal(); }); }
@@ -722,7 +726,9 @@ $("chips").addEventListener("click",e=>{ const b=e.target.closest(".chip"); if(b
 $("tbody").addEventListener("click",e=>{ const tr=e.target.closest("tr[data-i]"); if(tr){ selectSlot(+tr.dataset.i); $("entryCard").scrollIntoView({behavior:"smooth",block:"start"}); } });
 document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{
   if(inp.dataset.calc||inp.dataset.pad) return;
-  inp.addEventListener("input",()=>{ if(VIEW) return; const r=state.rows[sel], k=inp.dataset.k; r[k]=inp.value.trim(); if(k==="st") r.stAuto=false;
+  inp.addEventListener("input",()=>{ if(VIEW) return; const r=state.rows[sel], k=inp.dataset.k;
+    if(k==="tap"&&inp.value&&tapFuture(inp.value)){ inp.value=r.tap||""; toast("⚠ 出湯時刻は、出湯してから入れてください（今より後の時刻は入れられません）"); return; }
+    r[k]=inp.value.trim(); if(k==="st") r.stAuto=false;
     if(k==="temp"&&r.temp&&!r.tap){ r.tap=nowHM(); document.querySelector('#entryCard input[data-k="tap"]').value=r.tap; }
     touchRow(sel); refreshLight(); });
   if(inp.dataset.k==="worker") inp.addEventListener("change",()=>{ const v=inp.value.trim(); rememberWorker(v); workerAdding=false; renderWorkerSel(); });
@@ -813,20 +819,30 @@ document.querySelectorAll("input[data-calc]").forEach(inp=>inp.addEventListener(
 $("calcDig").addEventListener("click",e=>{ const b=e.target.closest("[data-dg]"); if(!b) return; DIGS[calc.k]=+b.dataset.dg; LS.set(APP+":digits",DIGS); renderCalc(); });
 $("dlgCalc").addEventListener("cancel",e=>{ e.preventDefault(); document.querySelector('#dlgCalc [data-key="cancel"]').click(); });
 $("calcList").addEventListener("click",e=>{ const s=e.target.closest("[data-ci]"); if(!s) return; calc.list.splice(+s.dataset.ci,1); renderCalc(); });
-document.querySelector("#dlgCalc .keys").addEventListener("click",e=>{ const b=e.target.closest("[data-key]"); if(!b) return; const k=b.dataset.key;
+// ダライ粉：前の入力から30秒以内に続けて数値を入れたら「本当に計量した数値か」を聞く
+const DR_GAP=30000, drLast={};
+function askConfirm2(msg,yes,no){ const y=$("cfYes").textContent, n=$("cfNo").textContent; $("cfYes").textContent=yes; $("cfNo").textContent=no;
+  return askConfirm(msg).then(v=>{ $("cfYes").textContent=y; $("cfNo").textContent=n; return v; }); }
+async function drPush(v){ calc.list.push(v); calc.cur=""; if(calc.k!=="drM"&&calc.k!=="drKg") return true;
+  const key=state.date+"|"+sel+"|"+calc.k, now=Date.now(), last=drLast[key]; drLast[key]=now;
+  if(last&&now-last<DR_GAP){ renderCalc();
+    const ok=await askConfirm2(`⚠ 前の入力から ${Math.max(1,Math.round((now-last)/1000))} 秒しかたっていません。\n${fmtNum(v)} kg は本当に計量した数値ですか？\nApakah ini benar-benar hasil timbangan?`,"計量した数値です / Ya","取り消す / Batal");
+    if(!ok){ const i=calc.list.lastIndexOf(v); if(i>=0) calc.list.splice(i,1); drLast[key]=last; renderCalc(); toast("取り消しました。計量してから入れてください"); return false; } }
+  return true; }
+document.querySelector("#dlgCalc .keys").addEventListener("click",async e=>{ const b=e.target.closest("[data-key]"); if(!b) return; const k=b.dataset.key;
   if(k!=="cancel"&&calc.warned){ calc.warned=false; setMust(false); }
   else if(k!=="ok"&&k!=="cancel"&&$("calcMust").classList.contains("show")) setErr("");
   if(/^[0-9]$/.test(k)){ if(calc.cur.length<9) calc.cur=(calc.cur==="0"?"":calc.cur)+k;
-    const dg=digOf(calc.k); if(dg&&calc.cur.replace(/[^0-9]/g,"").length>=dg){ const v=num(calc.cur); if(v!=null){ calc.list.push(v); calc.cur=""; } } }
+    const dg=digOf(calc.k); if(dg&&calc.cur.replace(/[^0-9]/g,"").length>=dg){ const v=num(calc.cur); if(v!=null){ renderCalc(); await drPush(v); } } }
   else if(k==="."){ if(!calc.cur.includes(".")) calc.cur=(calc.cur||"0")+"."; }
   else if(k==="bs"){ calc.cur=calc.cur.slice(0,-1); }
   else if(k==="clr"){ calc.cur=""; calc.list=[]; }
-  else if(k==="plus"){ const v=num(calc.cur); if(v!=null){ calc.list.push(v); calc.cur=""; } }
+  else if(k==="plus"){ const v=num(calc.cur); if(v!=null){ await drPush(v); } }
   else if(k==="cancel"){ if(calcDirty()&&!calc.warned){ calc.warned=true; setMust(true); return; } setMust(false); $("dlgCalc").close(); return; }
   else if(k==="ok"){ const r=state.rows[sel]; const overMx=calc.k==="drKg"?drMax(r.drType):null, overT=calcTotal();
     { const v0=num(calc.cur), L0=v0!=null?calc.list.concat([v0]):calc.list, t0=L0.reduce((a,b)=>a+b,0), er=mixErr(r,calc.k,t0,L0.length>0);
       if(er){ if(v0!=null){ calc.list.push(v0); calc.cur=""; } renderCalc(); setErr(er); return; } }
-    const v=num(calc.cur); if(v!=null) calc.list.push(v); const tot=calc.list.reduce((a,b)=>a+b,0);
+    const v=num(calc.cur); if(v!=null){ if(!(await drPush(v))){ renderCalc(); return; } } const tot=calc.list.reduce((a,b)=>a+b,0);
     r[calc.k]=calc.list.length?fmtNum(tot):""; r.calc=r.calc||{}; r.calc[calc.k]=calc.list.length>1?calc.list.map(fmtNum).join("+"):"";
     if(calc.k==="drKg"||calc.k==="drM") drSync(r);
     if(overMx!=null&&overT>overMx) setTimeout(()=>alertOver(r.drType,overMx,overT),50);
