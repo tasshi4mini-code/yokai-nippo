@@ -385,6 +385,7 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
         <label class="f">出湯温度 (℃) <span class="id">Suhu air panas</span><input class="pad" data-k="temp" data-pad="1" readonly inputmode="none" placeholder="タップで入力"><span class="hint" data-h="temp"></span></label>
         <label class="f">出湯時刻 <span class="id">Waktunya air panas</span><span class="tcell"><input type="time" data-k="tap"><button data-now="tap">今</button></span></label>
         <label class="f">デマンド回数 <span class="id">Jumlah demand</span><input class="pad" data-k="dem" data-pad="1" readonly inputmode="none" placeholder="タップで入力"></label>
+        <label class="f">電力量 kWh（盤の只今の値） <span class="id">Energi listrik (kWh)</span><input class="pad" data-k="kwh" data-pad="1" readonly inputmode="none" placeholder="出湯のときに入力"><span class="hint" data-h="kwh"></span></label>
       </div>
     </div>
 
@@ -587,7 +588,7 @@ function specOf(r,k){ const m=k==="temp"?{temp:SPEC.temp}:matSpec(r.mat); if(!m)
 function cls(r,k){ const n=num(r[k]), s=specOf(r,k); if(n==null||!s) return ""; return (n<s.min||n>s.max)?"ng":"ok"; }
 function autoJ(r){ let any=false, ng=false; CHK.forEach(k=>{ const c=cls(r,k); if(c) any=true; if(c==="ng") ng=true; }); return ng?"NG":(any?"OK":""); }
 function judgeOf(r){ return r.jm? r.judge : autoJ(r); }
-function rowHas(r){ if(r.st!==""&&r.stAuto&&rowHas(Object.assign({},r,{st:"",stAuto:false}))===false) return false; return ["st","mat","sen","kou","dar","drM","drType","drKg","mod","kat","sil","add","addC","addSi","addSc","ce","c","si","ten","temp","tap","dem","worker","delay"].some(k=>(r[k]||"")!=="") || r.jm; }
+function rowHas(r){ if(r.st!==""&&r.stAuto&&rowHas(Object.assign({},r,{st:"",stAuto:false}))===false) return false; return ["st","mat","sen","kou","dar","drM","drType","drKg","mod","kat","sil","add","addC","addSi","addSc","ce","c","si","ten","temp","tap","dem","kwh","worker","delay"].some(k=>(r[k]||"")!=="") || r.jm; }
 function tmin(t){ if(!t) return null; const m=/^(\d{1,2}):(\d{2})/.exec(t); return m? (+m[1])*60+(+m[2]) : null; }
 function elapsed(r){ const a=tmin(r.st), b=tmin(r.tap); if(a==null||b==null) return null; let d=b-a; if(d<0) d+=1440; return d; }
 function fmtNum(n){ return Math.round(n*1000)/1000+""; }
@@ -646,6 +647,8 @@ function renderEntry(){
 }
 function updateMarks(){
   const r=state.rows[sel];
+  { const h=document.querySelector('[data-h="kwh"]'); if(h){ const u=kwhUse(sel), pt=kwhPerT(sel); h.className="hint"+(pt!=null&&(pt<KWH_T[0]||pt>KWH_T[1])?" ng":"");
+      h.textContent=u==null?"朝一にリセット。出湯ごとに今の値を入れる":`このチャージ ${fmtNum(u)} kWh`+(pt!=null?`（${pt} kWh/t）`:""); } }
   CHK.forEach(k=>{ const inp=document.querySelector(`#entryCard input[data-k="${k}"]`); const c=cls(r,k); inp.className=c+(inp.dataset.pad?" pad":""); const s=specOf(r,k); const h=document.querySelector(`[data-h="${k}"]`);
     h.className="hint "+(c==="ng"?"ng":""); h.textContent=c==="ng"?`規格外 (${s.min}〜${s.max})`:(c==="ok"?"OK":(s?`規格 ${s.min}〜${s.max}`:"")); });
   const tot=MIX.reduce((a,k)=>a+(num(r[k])||0),0); $("mixTotal").textContent= tot? `このチャージの配合合計 Total: ${fmtNum(tot)} kg` : "";
@@ -850,12 +853,21 @@ document.querySelector("#dlgCalc .keys").addEventListener("click",async e=>{ con
     $("dlgCalc").close(); touchRow(sel); renderEntry(); refreshLight(); return; }
   renderCalc(); });
 // ---- 数字キー (製造条件) ----
-const PADL={ce:"CE",c:"C",si:"Si",ten:"引張強度 Kekuatan tarik",temp:"出湯温度 (℃) Suhu",dem:"デマンド回数 Jumlah demand"};
+const PADL={kwh:"電力量 只今の値 (kWh)",ce:"CE",c:"C",si:"Si",ten:"引張強度 Kekuatan tarik",temp:"出湯温度 (℃) Suhu",dem:"デマンド回数 Jumlah demand"};
 let pad={k:null,cur:""};
 function renderPad(){ $("padDisp").textContent=pad.cur||"0"; }
+// ---- v23：電力量。朝一に盤の電力量をリセットし、出湯のたびに「只今の電力量」（積算）を入れる → 前のチャージとの差がこのチャージの電力量 ----
+const KWH_T=[400,900];   // 1トンあたりの電力量の目安（この範囲外なら確認をうながす）
+const KWH_MIXK=["sen","kou","dar","mod","kat","sil","addSc"];
+function chargeKg(r){ return KWH_MIXK.reduce((a,k)=>a+(num(r[k])||0),0); }
+function kwhPrev(i){ for(let j=i-1;j>=0;j--){ const x=num(state.rows[j].kwh); if(x!=null) return {no:j+1,v:x}; } return null; }
+function kwhUse(i){ const v=num(state.rows[i].kwh); if(v==null) return null; const p=kwhPrev(i); return (!p||v<p.v)?v:Math.round((v-p.v)*10)/10; }
+function kwhPerT(i){ const u=kwhUse(i), kg=chargeKg(state.rows[i]); return (u!=null&&kg>0)?Math.round(u/(kg/1000)):null; }
+function kwhDay(){ let u=0,kg=0,n=0; state.rows.forEach((r,i)=>{ const x=kwhUse(i); if(x==null) return; u+=x; n++; const w=chargeKg(r); if(w>0) kg+=w; }); return {u:Math.round(u*10)/10,kg,n,pt:kg>0?Math.round(u/(kg/1000)):null}; }
 function openPad(k){ if(VIEW) return; const r=state.rows[sel]; pad.k=k; pad.cur=r[k]||"";
   $("padTitle").textContent=`No.${sel+1}　${PADL[k]||k}`; const s=specOf(r,k);
-  $("padSpec").textContent= s?`規格 ${s.min}〜${s.max}`:""; $("padDot").disabled=(k==="dem"); renderPad(); $("dlgPad").showModal(); }
+  $("padSpec").textContent= s?`規格 ${s.min}〜${s.max}`:"";
+  if(k==="kwh"){ const p=kwhPrev(sel); $("padSpec").textContent=p?`前のチャージ No.${p.no}：${fmtNum(p.v)} kWh（この値より大きくなります）`:"この日の最初のチャージ：朝一に盤の電力量をリセットしたあとの値"; } $("padDot").disabled=(k==="dem"); renderPad(); $("dlgPad").showModal(); }
 document.querySelectorAll("input[data-pad]").forEach(inp=>inp.addEventListener("click",()=>openPad(inp.dataset.k)));
 $("dlgPad").addEventListener("cancel",e=>{ e.preventDefault(); $("dlgPad").close(); });
 document.querySelector("#dlgPad .keys").addEventListener("click",e=>{ const b=e.target.closest("[data-pk]"); if(!b||b.disabled) return; const k=b.dataset.pk;
@@ -866,6 +878,9 @@ document.querySelector("#dlgPad .keys").addEventListener("click",e=>{ const b=e.
   else if(k==="cancel"){ $("dlgPad").close(); return; }
   else if(k==="ok"){ const r=state.rows[sel]; let v=pad.cur.replace(/\.$/,""); r[pad.k]=v;
     if(pad.k==="temp"&&v&&!r.tap) r.tap=nowHM();
+    if(pad.k==="kwh"&&v){ const p=kwhPrev(sel), n=num(v);
+      if(p&&n<p.v) setTimeout(()=>toast(`⚠ 前のチャージ（No.${p.no}：${fmtNum(p.v)} kWh）より小さい値です。途中でリセットしたときだけこのままにしてください`),50);
+      else { const pt=kwhPerT(sel); if(pt!=null&&(pt<KWH_T[0]||pt>KWH_T[1])) setTimeout(()=>toast(`⚠ このチャージは ${pt} kWh/t です。値・朝のリセットを確認してください`),50); } }
     $("dlgPad").close(); touchRow(sel); renderEntry(); refreshLight(); return; }
   renderPad(); });
 document.addEventListener("keydown",e=>{ if(!$("dlgPad").open) return; const map={"Enter":"ok","Backspace":"bs","Escape":"cancel"}; const k=map[e.key]||(/^[0-9.]$/.test(e.key)?e.key:null); if(!k) return; e.preventDefault(); const b=document.querySelector(`#dlgPad [data-pk="${k}"]`); if(b) b.click(); });
@@ -1064,11 +1079,11 @@ function workbook(sheets){
 XS.fills.melt=XS.fillXml.length; XS.fillXml.push('<fill><patternFill patternType="solid"><fgColor rgb="FFFFCC80"/></patternFill></fill>');
 XS.fills.pour=XS.fillXml.length; XS.fillXml.push('<fill><patternFill patternType="solid"><fgColor rgb="FFB39DDB"/></patternFill></fill>');
 const DELAYL={"":"",melt:"溶解工程",pour:"注湯工程"};
-const DATA_HEAD=["生産日","溶炉No","開始予定","開始時刻","材質","銑鉄(kg)","鋼鉄(kg)","ダライ粉合計(kg)","岡本(kg)","岡本 投入回数","ダライ粉2種類目","2種類目(kg)","2種類目 投入回数","戻り材(kg)","加炭材(kg)","シリコン(kg)","C追加","Si追加","スクラップ追加(kg)","CE","C","Si","引張強度","出湯温度(℃)","出湯時刻","デマンド回数","判定","作業者","遅れ原因","開始→出湯(分)","成分TP採取","規格外項目","記録確認(監督者)"];
+const DATA_HEAD=["生産日","溶炉No","開始予定","開始時刻","材質","銑鉄(kg)","鋼鉄(kg)","ダライ粉合計(kg)","岡本(kg)","岡本 投入回数","ダライ粉2種類目","2種類目(kg)","2種類目 投入回数","戻り材(kg)","加炭材(kg)","シリコン(kg)","C追加","Si追加","スクラップ追加(kg)","CE","C","Si","引張強度","出湯温度(℃)","出湯時刻","デマンド回数","判定","作業者","遅れ原因","開始→出湯(分)","成分TP採取","規格外項目","記録確認(監督者)","電力量 只今の値(kWh)","電力量 このチャージ(kWh)","電力量(kWh/t)"];
 function dataRows(){
   const out=[DATA_HEAD];
   state.rows.forEach((r,i)=>{ if(!rowHas(r)) return; const e=elapsed(r); const m=drMainKg(r), o=drOtherKg(r);
-    out.push([state.date,i+1,SCHED[i],r.st,matL(r.mat),r.sen,r.kou,r.dar,m==null?"":m,cntOf(r,"drM")||"",r.drType||"",o==null?"":o,r.drType?(cntOf(r,"drKg")||""):"",r.mod,r.kat,r.sil,r.addC||r.add,r.addSi,r.addSc,r.ce,r.c,r.si,r.ten,r.temp,r.tap,r.dem,judgeOf(r),r.worker,DELAYL[r.delay||""],e==null?"":e,TP.has(i+1)?"○":"",CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),state.confirmBy]); });
+    out.push([state.date,i+1,SCHED[i],r.st,matL(r.mat),r.sen,r.kou,r.dar,m==null?"":m,cntOf(r,"drM")||"",r.drType||"",o==null?"":o,r.drType?(cntOf(r,"drKg")||""):"",r.mod,r.kat,r.sil,r.addC||r.add,r.addSi,r.addSc,r.ce,r.c,r.si,r.ten,r.temp,r.tap,r.dem,judgeOf(r),r.worker,DELAYL[r.delay||""],e==null?"":e,TP.has(i+1)?"○":"",CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),state.confirmBy,r.kwh||"",kwhUse(i)??"",kwhPerT(i)??""]); });
   return out;
 }
 function eventRows(){ const out=[["生産日","No","発生時刻","終了時刻","担当","異常/変化点内容","処置内容"]]; liveEvents().forEach((e,i)=>out.push([state.date,i+1,e.start,e.end,e.person,e.content,e.action])); return out; }
@@ -1095,6 +1110,7 @@ function buildNippoSheet(){
     const j=judgeOf(r); S.set(X+16,y,j,j==="NG"?NG:B); S.set(X+17,y,r.worker,B); S.set(X+18,y,DELAYL[r.delay||""],r.delay?st({border:1,h:"center",fill:r.delay}):B);
     const e=elapsed(r); S.set(X+19,y,e==null?"":e,e!=null&&e>TARGET_MIN?st({border:1,h:"center",fill:"warn"}):B); });
   let y=r0+2+N; S.merge(0,y,X-1,y,"累計 (kg)",H); MIX.forEach((k,j)=>S.set(X+j,y,tot[k]?Math.round(tot[k]*1000)/1000:"",st({font:1,border:1,h:"center",fill:"head"}))); S.set(X+8,y,tsc?Math.round(tsc*1000)/1000:"",st({font:1,border:1,h:"center",fill:"head"}));
+  { const kd=kwhDay(); if(kd.n){ y++; S.merge(0,y,X-1,y,"電力量",H); S.merge(X,y,L,y,`合計 ${fmtNum(kd.u)} kWh（${kd.n} チャージ）`+(kd.pt!=null?`　／　1トンあたり ${kd.pt} kWh/t`:"")+"　※盤の「只今の電力量」の差から計算",st({font:1,border:1})); } }
   const ds=drSummary(); if(ds.length){ y++; S.merge(0,y,X-1,y,"ダライ粉内訳",H); S.merge(X,y,L,y,ds.map(x=>`${x.name} ${fmtNum(x.kg)}kg`+(x.cnt?`(${x.cnt}回)`:"")).join("　/　"),st({font:1,border:1})); }
   y+=2; S.merge(0,y,L,y,"異常/変化点履歴",st({font:1,fill:"head",border:1})); y++;
   S.merge(0,y,1,y,"発生",H); S.merge(2,y,3,y,"〜",H); S.merge(4,y,15,y,"異常/変化点内容",H); S.merge(16,y,24,y,"処置内容",H); S.merge(25,y,L,y,"担当",H); y++;
