@@ -187,6 +187,14 @@ body.view .seg,body.view #matBtns{pointer-events:none}
 body.view #specLock,body.view #specBtns{display:none!important}
 body.view #viewNote{display:block!important}
 .ev{grid-template-columns:110px 110px 1fr 1fr 140px auto}
+.stp{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;display:grid;gap:8px 12px;grid-template-columns:auto auto 1fr auto;align-items:end}
+.stp .tcell{display:flex;gap:4px;min-width:0}.stp .tcell input{min-width:0;flex:1 1 auto;width:100%}.stp>label{min-width:0}.stp .memo input{width:100%;box-sizing:border-box}
+.stp .rsn{display:flex;flex-wrap:wrap;gap:6px}
+.stp .rsn button{min-height:44px;padding:0 12px;border-radius:10px;border:2px solid #9aa7b8;background:#fff;font-weight:bold;font-size:15px;cursor:pointer}
+.stp .rsn button.on{background:#4169e1;border-color:#4169e1;color:#fff}
+.stp .memo{grid-column:1/-1}.stp .mins{font-weight:bold;white-space:nowrap}
+@media (max-width:900px){ .stp{grid-template-columns:1fr 1fr} .stp .rsn{grid-column:1/-1} }
+body.view #btnAddStop,body.view [data-sdel]{display:none!important}
 @media (max-width:900px){ .ev{grid-template-columns:1fr 1fr} }
 .spectbl{width:100%;min-width:0;border-collapse:collapse;font-size:14px}
 .spectbl th,.spectbl td{border:1px solid var(--line);padding:4px;text-align:center}
@@ -425,6 +433,13 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
   </section>
 
   <section class="card">
+    <h2>停止・待ち時間 <span class="id">Waktu berhenti / menunggu</span></h2>
+    <div id="stops"></div>
+    <button id="btnAddStop">＋ 停止・待ちを追加 <span class="id">Tambah</span></button>
+    <div class="small" id="stopSum" style="margin-top:8px"></div>
+  </section>
+
+  <section class="card">
     <h2>異常/変化点履歴 <span class="id">Riwayat kelainan / titik perubahan</span></h2>
     <div id="events"></div>
     <button id="btnAddEv">＋ 異常/変化点を追加 <span class="id">Tambah</span></button>
@@ -573,7 +588,7 @@ function todayStr(){ const d=new Date(); if(d.getHours()<8) d.setDate(d.getDate(
 function nowSlot(){ const d=new Date(); let m=d.getHours()*60+d.getMinutes()-8*60; if(m<0) m+=1440; return Math.min(N-1,Math.floor(m/45)); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function blankRow(){ return {st:"",mat:"",sen:"",kou:"",dar:"",mod:"",kat:"",sil:"",add:"",addC:"",addSi:"",addSc:"",drM:"",drType:"",drKg:"",calc:{},ce:"",c:"",si:"",ten:"",temp:"",tap:"",dem:"",judge:"",jm:false,worker:"",delay:"",u:0}; }
-function blankState(date){ return {date,equip:EQUIP,confirmBy:"",hu:0,rows:Array.from({length:N},blankRow),events:[]}; }
+function blankState(date){ return {date,equip:EQUIP,confirmBy:"",hu:0,stops:[],rows:Array.from({length:N},blankRow),events:[]}; }
 function key(){ return APP+":day:"+state.date; }
 function save(){ state.updated=new Date().toISOString(); LS.set(key(),state); }
 function normalize(s){ const b=blankState(s.date); s=Object.assign(b,s); s.equip=EQUIP;
@@ -695,7 +710,7 @@ function renderWorkerSel(){ const r=state.rows[sel], w=r.worker||"", names=worke
   $("workerSel").innerHTML=`<option value="">${p?"（前回 "+esc(p)+"）選んでください":"選んでください / pilih"}</option>`+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")+`<option value="__add">＋ 名前を追加 / tambah nama</option>`;
   $("workerSel").value=workerAdding?"__add":w; $("workerSel").disabled=VIEW; $("workerNew").hidden=!workerAdding; }
 
-function renderAll(){ renderHeader(); renderChips(); renderEntry(); renderTable(); renderEvents(); renderWorkers(); }
+function renderAll(){ renderHeader(); renderChips(); renderEntry(); renderTable(); renderEvents(); renderStops(); renderWorkers(); }
 function refreshLight(){ renderChips(); renderTable(); updateMarks(); }
 function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2600); }
 // 出湯時刻が今より後か（日報の日付は朝8時で切りかわる）
@@ -751,6 +766,31 @@ $("workerSel").addEventListener("change",()=>{ if(VIEW) return; const v=$("worke
   if(v==="__add"){ workerAdding=true; r.worker=""; $("workerNew").value=""; touchRow(sel); renderWorkerSel(); $("workerNew").focus(); return; }
   workerAdding=false; r.worker=v; $("workerNew").value=v; touchRow(sel); renderWorkerSel(); refreshLight(); });
 $("confirmBy").addEventListener("input",e=>{ if(VIEW) return; state.confirmBy=e.target.value.trim(); state.hu=Date.now(); save(); Sync.queue("header",""); });
+// ---- v24：停止・待ち時間（開始・終了と理由をボタンで選ぶ。日報の見出しと一緒に送る）----
+const STOP_R=[["kosho","設備故障"],["chuto","注湯待ち"],["suna","砂待ち"],["hoshu","溶解炉補修"],["noro","ノロ取り"],["seibun","成分待ち"]];
+const STOP_L=Object.fromEntries(STOP_R);
+const hmMin=hm=>{ const m=/^(\d{1,2}):(\d{2})/.exec(hm||""); return m?(+m[1])*60+(+m[2]):null; };
+function stopMin(x){ const a=hmMin(x.st), b=hmMin(x.en); if(a==null||b==null) return null; let m=b-a; if(m<0) m+=1440; return m; }
+function liveStops(){ return (state.stops||[]).filter(x=>!x.del); }
+function touchStops(){ if(VIEW) return; state.hu=Date.now(); save(); Sync.queue("header",""); stopSum(); }
+function stopSum(){ const L=liveStops(), t={}; let all=0; L.forEach(x=>{ const m=stopMin(x); if(m==null) return; all+=m; const k=x.r||"none"; t[k]=(t[k]||0)+m; });
+  $("stopSum").textContent=L.length?`合計 ${all} 分　`+Object.entries(t).map(([k,m])=>`${STOP_L[k]||"理由なし"} ${m}分`).join("・"):""; }
+function renderStops(){ const L=state.stops||[];
+  $("stops").innerHTML=liveStops().length?L.map((x,i)=>x.del?"":`<div class="stp" data-s="${i}">
+     <label class="f">開始 <span class="id">Mulai</span><span class="tcell"><input type="time" data-sk="st" value="${esc(x.st||"")}" ${VIEW?"readonly":""}><button data-snow="st">今</button></span></label>
+     <label class="f">終了 <span class="id">Selesai</span><span class="tcell"><input type="time" data-sk="en" value="${esc(x.en||"")}" ${VIEW?"readonly":""}><button data-snow="en">今</button></span></label>
+     <div class="rsn">${STOP_R.map(([k,l])=>`<button data-sr="${k}" class="${x.r===k?"on":""}" ${VIEW?"disabled":""}>${l}</button>`).join("")}</div>
+     <div style="display:flex;gap:8px;align-items:center"><span class="mins">${stopMin(x)!=null?stopMin(x)+" 分":""}</span><button data-sdel="${i}">削除</button></div>
+     <label class="f memo">メモ <span class="id">Catatan</span><input lang="ja" data-sk="memo" value="${esc(x.memo||"")}" ${VIEW?"readonly":""} placeholder="くわしい内容（なくてもよい）"></label>
+   </div>`).join(""):'<div class="small" style="margin-bottom:10px">記録なし（炉が止まった・待ちになったときに追加）</div>';
+  stopSum(); }
+$("btnAddStop").onclick=()=>{ if(VIEW) return; (state.stops=state.stops||[]).push({id:uid(),st:nowHM(),en:"",r:"",memo:""}); touchStops(); renderStops(); };
+$("stops").addEventListener("input",e=>{ if(VIEW) return; const box=e.target.closest(".stp"), k=e.target.dataset.sk; if(!box||!k) return; const x=state.stops[+box.dataset.s]; x[k]=e.target.value; touchStops();
+  const m=box.querySelector(".mins"); if(m) m.textContent=stopMin(x)!=null?stopMin(x)+" 分":""; });
+$("stops").addEventListener("click",async e=>{ if(VIEW) return; const box=e.target.closest(".stp"); if(!box) return; const x=state.stops[+box.dataset.s];
+  const b=e.target.closest("[data-sr]"); if(b){ e.preventDefault(); x.r=x.r===b.dataset.sr?"":b.dataset.sr; touchStops(); renderStops(); return; }
+  const n=e.target.closest("[data-snow]"); if(n){ e.preventDefault(); x[n.dataset.snow]=nowHM(); touchStops(); renderStops(); return; }
+  const d=e.target.closest("[data-sdel]"); if(d&&await askConfirm("この停止・待ちの記録を削除しますか?")){ x.del=true; touchStops(); renderStops(); } });
 $("btnAddEv").onclick=()=>{ const ev={id:uid(),u:Date.now(),start:nowHM(),end:"",person:state.rows[sel].worker||"",content:"",action:""}; state.events.push(ev); save(); Sync.queue("event",ev.id); renderEvents(); };
 $("events").addEventListener("input",e=>{ if(VIEW) return; const box=e.target.closest(".ev"), k=e.target.dataset.ek; if(box&&k){ const ev=state.events[+box.dataset.e]; ev[k]=e.target.value; ev.u=Date.now(); save(); Sync.queue("event",ev.id); } });
 $("events").addEventListener("click",async e=>{ const d=e.target.dataset.del; if(d!=null && await askConfirm("この記録を削除しますか?")){ const ev=state.events[+d]; ev.del=true; ev.u=Date.now(); save(); Sync.queue("event",ev.id); renderEvents(); } });
@@ -1112,7 +1152,10 @@ function buildNippoSheet(){
   let y=r0+2+N; S.merge(0,y,X-1,y,"累計 (kg)",H); MIX.forEach((k,j)=>S.set(X+j,y,tot[k]?Math.round(tot[k]*1000)/1000:"",st({font:1,border:1,h:"center",fill:"head"}))); S.set(X+8,y,tsc?Math.round(tsc*1000)/1000:"",st({font:1,border:1,h:"center",fill:"head"}));
   { const kd=kwhDay(); if(kd.n){ y++; S.merge(0,y,X-1,y,"電力量",H); S.merge(X,y,L,y,`合計 ${fmtNum(kd.u)} kWh（${kd.n} チャージ）`+(kd.pt!=null?`　／　1トンあたり ${kd.pt} kWh/t`:"")+"　※盤の「只今の電力量」の差から計算",st({font:1,border:1})); } }
   const ds=drSummary(); if(ds.length){ y++; S.merge(0,y,X-1,y,"ダライ粉内訳",H); S.merge(X,y,L,y,ds.map(x=>`${x.name} ${fmtNum(x.kg)}kg`+(x.cnt?`(${x.cnt}回)`:"")).join("　/　"),st({font:1,border:1})); }
-  y+=2; S.merge(0,y,L,y,"異常/変化点履歴",st({font:1,fill:"head",border:1})); y++;
+  { const SL=liveStops(); y+=2; S.merge(0,y,L,y,"停止・待ち時間"+(SL.length?`（合計 ${SL.reduce((a,x)=>a+(stopMin(x)||0),0)} 分）`:""),st({font:1,fill:"head",border:1})); y++;
+    S.merge(0,y,1,y,"開始",H); S.merge(2,y,3,y,"終了",H); S.merge(4,y,5,y,"分",H); S.merge(6,y,10,y,"理由",H); S.merge(11,y,L,y,"メモ",H); y++;
+    (SL.length?SL:[{}]).forEach(x=>{ const m=stopMin(x); S.merge(0,y,1,y,x.st||"",B); S.merge(2,y,3,y,x.en||"",B); S.merge(4,y,5,y,m==null?"":m,B); S.merge(6,y,10,y,STOP_L[x.r]||"",B); S.merge(11,y,L,y,x.memo||"",st({border:1,wrap:true})); y++; }); }
+  y+=1; S.merge(0,y,L,y,"異常/変化点履歴",st({font:1,fill:"head",border:1})); y++;
   S.merge(0,y,1,y,"発生",H); S.merge(2,y,3,y,"〜",H); S.merge(4,y,15,y,"異常/変化点内容",H); S.merge(16,y,24,y,"処置内容",H); S.merge(25,y,L,y,"担当",H); y++;
   const W=st({border:1,wrap:true}); const LE=liveEvents(); (LE.length?LE:[{start:"",end:"",person:"",content:"",action:""}]).forEach(e=>{
     S.merge(0,y,1,y,e.start,B); S.merge(2,y,3,y,e.end,B); S.merge(4,y,15,y,e.content,W); S.merge(16,y,24,y,e.action,W); S.merge(25,y,L,y,e.person,B); S.heights[y]=30; y++; });
@@ -1120,7 +1163,7 @@ function buildNippoSheet(){
 }
 function tableSheet(name,rows,widths){ const S=new Sheet(name); S.freeze=1; S.cols=widths; const H=st({font:1,fill:"head",border:1,h:"center",wrap:true});
   rows.forEach((row,r)=>row.forEach((v,c)=>S.set(c,r,v,r===0?H:st({border:1})))); S.autoFilter="A1:"+ref(rows[0].length-1,Math.max(rows.length-1,0)); S.heights[0]=32; return S; }
-function buildXlsx(){ return workbook([buildNippoSheet(), tableSheet("データ",dataRows(),[11,6,8,8,8,8,8,10,8,8,10,9,9,8,8,9,7,7,10,6,6,6,8,9,8,8,6,10,9,9,8,10,10]), tableSheet("異常変化点",eventRows(),[11,5,9,9,10,50,50])]); }
+function buildXlsx(){ return workbook([buildNippoSheet(), tableSheet("データ",dataRows(),[11,6,8,8,8,8,8,10,8,8,10,9,9,8,8,9,7,7,10,6,6,6,8,9,8,8,6,10,9,9,8,10,10]), tableSheet("異常変化点",eventRows(),[11,5,9,9,10,50,50]), tableSheet("停止・待ち",[["生産日","No","開始","終了","時間(分)","理由","メモ"],...liveStops().map((x,i)=>[state.date,i+1,x.st||"",x.en||"",stopMin(x)??"",STOP_L[x.r]||"",x.memo||""])],[11,5,9,9,9,14,40])]); }
 $("btnCsv").onclick=async()=>{
   if(!state.rows.some(rowHas)&&!liveEvents().length){ toast("入力データがありません"); return; }
   await Sync.flush();
@@ -1159,7 +1202,7 @@ const Sync=(function(){
   const on=()=>!!cfg.syncUrl, persist=()=>LS.set(APP+":queue",q);
   function build(type,ref){
     const d=state.date, e=EQUIP; let u, raw;
-    if(type==="header"){ u=state.hu||Date.now(); raw={confirmBy:state.confirmBy}; }
+    if(type==="header"){ u=state.hu||Date.now(); raw={confirmBy:state.confirmBy,stops:(state.stops||[]).filter(x=>!x.del)}; }
     else if(type==="row"){ const r=state.rows[ref]; u=r.u||Date.now(); raw=Object.assign({},r,{jOut:judgeOf(r),ngOut:CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),elapsed:elapsed(r),sched:SCHED[ref],tp:TP.has(ref+1),drMain:DR().main,drMainKg:drMainKg(r),drMainCnt:cntOf(r,"drM"),drOtherKg:drOtherKg(r),drOtherCnt:r.drType?cntOf(r,"drKg"):0,matLabel:matL(r.mat)}); }
     else { const ev=state.events.find(x=>x.id===ref); u=ev.u; raw=Object.assign({},ev); }
     return {k:`${type}|${d}|${e}|${ref}`,op:{type,date:d,equip:e,ref:String(ref),u,raw}};
@@ -1179,7 +1222,7 @@ const Sync=(function(){
     if(j.spec && !pending("spec")) applyServerSpec(j.spec.raw, j.spec.u);
     if(state.date!==d) return; let changed=false, selChanged=false, evChanged=false;
     (j.items||[]).forEach(it=>{ const k=`${it.type}|${d}|${EQUIP}|${it.ref}`; if(pending(k)) return; const raw=it.raw||{};
-      if(it.type==="header"){ if((it.u||0)>(state.hu||0)){ state.confirmBy=String(raw.confirmBy??""); state.hu=it.u; changed=true; renderHeader(); } }
+      if(it.type==="header"){ if((it.u||0)>(state.hu||0)){ state.confirmBy=String(raw.confirmBy??""); state.stops=Array.isArray(raw.stops)?raw.stops:[]; state.hu=it.u; changed=true; renderHeader(); { const ae=document.activeElement; if(!(ae&&ae.closest&&ae.closest("#stops"))) renderStops(); } } }
       else if(it.type==="row"){ const i=+it.ref; if(!(i>=0&&i<N)) return; if((it.u||0)>(state.rows[i].u||0)){ const r=Object.assign(blankRow(),raw,{u:it.u}); ["mat","plan"].forEach(k=>{ if(OLDMAT[r[k]]) r[k]=OLDMAT[r[k]]; }); ["jOut","ngOut","elapsed","sched","tp","noro","drMain","drMainKg","drMainCnt","drOtherKg","drOtherCnt","matLabel"].forEach(x=>delete r[x]); r.calc=r.calc||{}; state.rows[i]=r; changed=true; if(i===sel) selChanged=true; } }
       else if(it.type==="event"){ const le=state.events.find(x=>x.id===it.ref); const ev=Object.assign({id:it.ref,start:"",end:"",person:"",content:"",action:""},raw,{u:it.u});
         if(!le){ state.events.push(ev); changed=true; evChanged=true; } else if((it.u||0)>(le.u||0)){ Object.assign(le,ev); changed=true; evChanged=true; } } });
