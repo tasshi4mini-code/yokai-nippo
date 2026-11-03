@@ -290,6 +290,7 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
 .legend{font-size:14px;align-items:center}
 .calc-drsum{margin:-4px 0 10px;padding:8px 12px;border:2px solid #7a3b00;border-radius:10px;background:#fff4e6;color:#7a3b00}
 .calc-drsum b{font-size:30px}
+.stp.dsg{grid-template-columns:1fr 1fr auto}.stp.dsg .rsn{grid-column:1/-1;order:3}.stp.dsg .mins{align-self:center}.stp.dsg .memo{order:4}
 </style>
 </head>
 <body>
@@ -528,6 +529,18 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
   <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="pri" onclick="this.closest('dialog').close()">閉じる</button></div>
 </div></dialog>
 
+<dialog id="dlgStop"><div class="dlg">
+  <h3 id="dsTitle" style="margin:0 0 4px">停止・待ち時間 <span class="id">Waktu berhenti / menunggu</span></h3>
+  <div class="small" id="dsNote" style="margin-bottom:10px"></div>
+  <div class="stp dsg" style="border:0;padding:0;margin:0">
+    <label class="f">開始 <span class="id">Mulai</span><span class="tcell"><input type="time" id="dsSt"><button data-dsnow="dsSt">今</button></span></label>
+    <label class="f">終了 <span class="id">Selesai</span><span class="tcell"><input type="time" id="dsEn"><button data-dsnow="dsEn">今</button></span></label>
+    <div class="rsn" id="dsRsn"></div>
+    <span class="mins" id="dsMin"></span>
+    <label class="f memo">メモ <span class="id">Catatan</span><input lang="ja" id="dsMemo" placeholder="くわしい内容（なくてもよい）"></label>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap"><button id="dsLater">あとで入れる</button><button class="pri" id="dsSave">記録する</button></div>
+</div></dialog>
 <dialog id="dlgConfirm"><div class="dlg">
   <p id="cfMsg" style="font-size:17px;margin:4px 0 18px;white-space:pre-line"></p>
   <div style="display:flex;justify-content:flex-end;gap:8px"><button id="cfNo">キャンセル</button><button class="pri" id="cfYes">OK</button></div>
@@ -758,7 +771,24 @@ $("drTypes").addEventListener("click",e=>{ const b=e.target.closest("[data-dt]")
   r.drType=t; if(!t){ r.drKg=""; if(r.calc) delete r.calc.drKg; } drSync(r);
   const mx=drMax(t), o=drOtherKg(r); if(mx!=null&&o!=null&&o>mx) toast(`${t}の上限は${mx}kgです`);
   touchRow(sel); renderDarai(); refreshLight(); });
-$("delayBtns").addEventListener("click",e=>{ const b=e.target.closest("[data-d]"); if(!b||VIEW) return; state.rows[sel].delay=b.dataset.d; touchRow(sel); refreshLight(); });
+$("delayBtns").addEventListener("click",e=>{ const b=e.target.closest("[data-d]"); if(!b||VIEW) return; const was=state.rows[sel].delay||""; state.rows[sel].delay=b.dataset.d; touchRow(sel); refreshLight();
+  if((b.dataset.d==="melt"||b.dataset.d==="pour")&&b.dataset.d!==was) openStopDlg(sel,b.dataset.d); });
+// v25：出湯の遅れを選んだら、停止・待ち時間の入力をポップアップで出す（そのチャージの記録があれば開いて直す）
+let dsCur=null;
+function dsRender(){ const x=dsCur; $("dsRsn").innerHTML=STOP_R.map(([k,l])=>`<button data-dsr="${k}" class="${x.r===k?"on":""}">${l}</button>`).join("");
+  const m=stopMin({st:$("dsSt").value,en:$("dsEn").value}); $("dsMin").textContent=m!=null?m+" 分":""; }
+function openStopDlg(i,why){ const no=i+1, old=liveStops().find(x=>x.ch===no), r=state.rows[i];
+  dsCur=old?Object.assign({},old):{id:uid(),ch:no,st:"",en:"",r:why==="pour"?"chuto":"",memo:""};
+  $("dsNote").textContent=`No.${no} の出湯の遅れ（${why==="pour"?"注湯工程が原因":"溶解工程が原因"}）。止まっていた・待っていた時間と理由を入れてください`;
+  $("dsSt").value=dsCur.st||""; $("dsEn").value=dsCur.en||""; $("dsMemo").value=dsCur.memo||""; dsRender(); $("dlgStop").showModal(); }
+$("dsRsn").addEventListener("click",e=>{ const b=e.target.closest("[data-dsr]"); if(!b) return; e.preventDefault(); dsCur.r=dsCur.r===b.dataset.dsr?"":b.dataset.dsr; dsRender(); });
+document.querySelectorAll("[data-dsnow]").forEach(b=>b.addEventListener("click",e=>{ e.preventDefault(); $(b.dataset.dsnow).value=nowHM(); dsRender(); }));
+["dsSt","dsEn"].forEach(id=>$(id).addEventListener("input",dsRender));
+$("dsLater").onclick=()=>{ $("dlgStop").close(); toast("停止・待ち時間は、下の「停止・待ち時間」の欄からも入れられます"); };
+$("dsSave").onclick=()=>{ const x=dsCur; x.st=$("dsSt").value; x.en=$("dsEn").value; x.memo=$("dsMemo").value.trim();
+  if(!x.r){ toast("理由を選んでください"); return; } if(!x.st||!x.en){ toast("止まった・待った時間（開始・終了）を入れてください"); return; }
+  const L=state.stops=state.stops||[], k=L.findIndex(y=>y.id===x.id); if(k>=0) L[k]=x; else L.push(x);
+  touchStops(); renderStops(); $("dlgStop").close(); toast(`停止・待ち時間を記録しました（${STOP_L[x.r]}${stopMin(x)!=null?" "+stopMin(x)+"分":""}）`); };
 $("btnClearRow").onclick=async()=>{ if(await askConfirm("No."+(sel+1)+" の入力内容をクリアしますか?")){ state.rows[sel]=blankRow(); touchRow(sel); renderEntry(); refreshLight(); } };
 $("btnNext").onclick=()=>{ const r=state.rows[sel]; if(!r.worker&&sel>0&&rowHas(r)&&state.rows[sel-1].worker){ r.worker=state.rows[sel-1].worker; touchRow(sel); } selectSlot(sel+1); window.scrollTo({top:$("entryCard").offsetTop-70,behavior:"smooth"}); };
 $("btnPrev").onclick=()=>selectSlot(sel-1);
@@ -780,7 +810,7 @@ function renderStops(){ const L=state.stops||[];
      <label class="f">開始 <span class="id">Mulai</span><span class="tcell"><input type="time" data-sk="st" value="${esc(x.st||"")}" ${VIEW?"readonly":""}><button data-snow="st">今</button></span></label>
      <label class="f">終了 <span class="id">Selesai</span><span class="tcell"><input type="time" data-sk="en" value="${esc(x.en||"")}" ${VIEW?"readonly":""}><button data-snow="en">今</button></span></label>
      <div class="rsn">${STOP_R.map(([k,l])=>`<button data-sr="${k}" class="${x.r===k?"on":""}" ${VIEW?"disabled":""}>${l}</button>`).join("")}</div>
-     <div style="display:flex;gap:8px;align-items:center"><span class="mins">${stopMin(x)!=null?stopMin(x)+" 分":""}</span><button data-sdel="${i}">削除</button></div>
+     <div style="display:flex;gap:8px;align-items:center">${x.ch?`<span class="small">No.${x.ch} の遅れ</span>`:""}<span class="mins">${stopMin(x)!=null?stopMin(x)+" 分":""}</span><button data-sdel="${i}">削除</button></div>
      <label class="f memo">メモ <span class="id">Catatan</span><input lang="ja" data-sk="memo" value="${esc(x.memo||"")}" ${VIEW?"readonly":""} placeholder="くわしい内容（なくてもよい）"></label>
    </div>`).join(""):'<div class="small" style="margin-bottom:10px">記録なし（炉が止まった・待ちになったときに追加）</div>';
   stopSum(); }
@@ -1163,7 +1193,7 @@ function buildNippoSheet(){
 }
 function tableSheet(name,rows,widths){ const S=new Sheet(name); S.freeze=1; S.cols=widths; const H=st({font:1,fill:"head",border:1,h:"center",wrap:true});
   rows.forEach((row,r)=>row.forEach((v,c)=>S.set(c,r,v,r===0?H:st({border:1})))); S.autoFilter="A1:"+ref(rows[0].length-1,Math.max(rows.length-1,0)); S.heights[0]=32; return S; }
-function buildXlsx(){ return workbook([buildNippoSheet(), tableSheet("データ",dataRows(),[11,6,8,8,8,8,8,10,8,8,10,9,9,8,8,9,7,7,10,6,6,6,8,9,8,8,6,10,9,9,8,10,10]), tableSheet("異常変化点",eventRows(),[11,5,9,9,10,50,50]), tableSheet("停止・待ち",[["生産日","No","開始","終了","時間(分)","理由","メモ"],...liveStops().map((x,i)=>[state.date,i+1,x.st||"",x.en||"",stopMin(x)??"",STOP_L[x.r]||"",x.memo||""])],[11,5,9,9,9,14,40])]); }
+function buildXlsx(){ return workbook([buildNippoSheet(), tableSheet("データ",dataRows(),[11,6,8,8,8,8,8,10,8,8,10,9,9,8,8,9,7,7,10,6,6,6,8,9,8,8,6,10,9,9,8,10,10]), tableSheet("異常変化点",eventRows(),[11,5,9,9,10,50,50]), tableSheet("停止・待ち",[["生産日","No","開始","終了","時間(分)","理由","メモ","遅れたチャージ"],...liveStops().map((x,i)=>[state.date,i+1,x.st||"",x.en||"",stopMin(x)??"",STOP_L[x.r]||"",x.memo||"",x.ch?"No."+x.ch:""])],[11,5,9,9,9,14,40,10])]); }
 $("btnCsv").onclick=async()=>{
   if(!state.rows.some(rowHas)&&!liveEvents().length){ toast("入力データがありません"); return; }
   await Sync.flush();
