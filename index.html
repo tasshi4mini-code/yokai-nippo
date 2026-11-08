@@ -1149,31 +1149,31 @@ function workbook(sheets){
 XS.fills.melt=XS.fillXml.length; XS.fillXml.push('<fill><patternFill patternType="solid"><fgColor rgb="FFFFCC80"/></patternFill></fill>');
 XS.fills.pour=XS.fillXml.length; XS.fillXml.push('<fill><patternFill patternType="solid"><fgColor rgb="FFB39DDB"/></patternFill></fill>');
 const DELAYL={"":"",melt:"溶解工程",pour:"注湯工程"};
-const DATA_HEAD=["生産日","溶炉No","開始予定","開始時刻","材質","銑鉄(kg)","鋼鉄(kg)","ダライ粉合計(kg)","岡本(kg)","岡本 投入回数","ダライ粉2種類目","2種類目(kg)","2種類目 投入回数","戻り材(kg)","加炭材(kg)","シリコン(kg)","C追加","Si追加","スクラップ追加(kg)","CE","C","Si","引張強度","出湯温度(℃)","出湯時刻","デマンド回数","判定","作業者","遅れ原因","開始→出湯(分)","成分TP採取","規格外項目","記録確認(監督者)","電力量 只今の値(kWh)","電力量 このチャージ(kWh)","電力量(kWh/t)"];
+const DATA_HEAD=["生産日","溶炉No","開始時刻","材質","銑鉄(kg)","鋼鉄(kg)","ダライ粉合計(kg)","岡本(kg)","岡本 投入回数","ダライ粉2種類目","2種類目(kg)","2種類目 投入回数","戻り材(kg)","加炭材(kg)","シリコン(kg)","C追加","Si追加","スクラップ追加(kg)","CE","C","Si","引張強度","出湯温度(℃)","出湯時刻","デマンド回数","判定","作業者","遅れ原因","開始→出湯(分)","成分TP採取","規格外項目","記録確認(監督者)","電力量 只今の値(kWh)","電力量 このチャージ(kWh)","電力量(kWh/t)"];
 function dataRows(){
   const out=[DATA_HEAD];
   state.rows.forEach((r,i)=>{ if(!rowHas(r)) return; const e=elapsed(r); const m=drMainKg(r), o=drOtherKg(r);
-    out.push([state.date,i+1,SCHED[i],r.st,matL(r.mat),r.sen,r.kou,r.dar,m==null?"":m,cntOf(r,"drM")||"",r.drType||"",o==null?"":o,r.drType?(cntOf(r,"drKg")||""):"",r.mod,r.kat,r.sil,r.addC||r.add,r.addSi,r.addSc,r.ce,r.c,r.si,r.ten,r.temp,r.tap,r.dem,judgeOf(r),r.worker,DELAYL[r.delay||""],e==null?"":e,TP.has(i+1)?"○":"",CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),state.confirmBy,r.kwh||"",kwhUse(i)??"",kwhPerT(i)??""]); });
+    out.push([state.date,i+1,r.st,matL(r.mat),r.sen,r.kou,r.dar,m==null?"":m,cntOf(r,"drM")||"",r.drType||"",o==null?"":o,r.drType?(cntOf(r,"drKg")||""):"",r.mod,r.kat,r.sil,r.addC||r.add,r.addSi,r.addSc,r.ce,r.c,r.si,r.ten,r.temp,r.tap,r.dem,judgeOf(r),r.worker,DELAYL[r.delay||""],e==null?"":e,TP.has(i+1)?"○":"",CHK.filter(k=>cls(r,k)==="ng").map(k=>CHKL[k]).join("・"),state.confirmBy,r.kwh||"",kwhUse(i)??"",kwhPerT(i)??""]); });
   return out;
 }
 function eventRows(){ const out=[["生産日","No","発生時刻","終了時刻","担当","異常/変化点内容","処置内容"]]; liveEvents().forEach((e,i)=>out.push([state.date,i+1,e.start,e.end,e.person,e.content,e.action])); return out; }
 function buildNippoSheet(){
-  const S=new Sheet("日報"); S.landscape=true; S.showGrid=false; const L=28, NM=MATS.length, X=3+NM; // X = 配合履歴の最初の列
-  S.cols=[5,6,6,5,5,5,5,5,5,6,6,18,6,6,6,6,6,7,6,6,6,6,7,6,6,6,5,8,8];
+  const S=new Sheet("日報"); S.landscape=true; S.showGrid=false; const L=27, NM=MATS.length, X=2+NM; // X = 配合履歴の最初の列
+  S.cols=[5,6,5,5,5,5,5,5,6,6,18,6,6,6,6,6,7,6,6,6,6,7,6,6,6,5,8,8];
   const H=st({font:1,fill:"head",border:1,h:"center",wrap:true}), B=st({border:1,h:"center"}), NG=st({font:2,border:1,h:"center",fill:"ng"});
   S.set(0,0,"溶解日報",st({font:3})); S.heights[0]=26;
   S.merge(0,1,1,1,"生産日",H); S.merge(2,1,4,1,state.date,B); S.merge(5,1,6,1,"目標",H); S.merge(7,1,9,1,"45分/チャージ",st({font:2,border:1,h:"center"}));
   S.merge(10,1,12,1,"記録確認(監督者)",st({font:2,fill:"ng",border:1,h:"center"})); S.merge(13,1,15,1,state.confirmBy,st({font:2,border:1,h:"center"}));
   S.merge(16,1,L,1,"◯=成分TP採取 / 橙=遅れ(溶解工程) / 紫=遅れ(注湯工程) / 赤=規格外・NG",st({font:4}));
   const r0=3;
-  S.merge(0,r0,2,r0,"生産予定",H); S.merge(3,r0,X-1,r0,"材質",H); S.merge(X,r0,X+8,r0,"配合履歴 (kg)",H); S.merge(X+9,r0,X+15,r0,"製造条件",H); S.merge(X+16,r0,L,r0,"",H);
-  const h=["溶炉","開始予定","開始時刻",...MATS.map(x=>x[1]),"銑鉄","鋼鉄","ダライ粉","戻り材","加炭材","シリコン","C追加","Si追加","スクラップ追加","CE","C","Si","引張強度","出湯温度","出湯時刻","デマンド回数","判定","作業者","遅れ原因","所要(分)"];
+  S.merge(0,r0,1,r0,"生産",H); S.merge(2,r0,X-1,r0,"材質",H); S.merge(X,r0,X+8,r0,"配合履歴 (kg)",H); S.merge(X+9,r0,X+15,r0,"製造条件",H); S.merge(X+16,r0,L,r0,"",H);
+  const h=["溶炉","開始時刻",...MATS.map(x=>x[1]),"銑鉄","鋼鉄","ダライ粉","戻り材","加炭材","シリコン","C追加","Si追加","スクラップ追加","CE","C","Si","引張強度","出湯温度","出湯時刻","デマンド回数","判定","作業者","遅れ原因","所要(分)"];
   h.forEach((t,i)=>S.set(i,r0+1,t,H)); S.heights[r0+1]=30;
   const tot={}; MIX.forEach(k=>tot[k]=0); let tsc=0;
   state.rows.forEach((r,i)=>{ const y=r0+2+i; MIX.forEach(k=>tot[k]+=num(r[k])||0);
     const nf=r.delay? st({font:1,border:1,h:"center",fill:r.delay}) : st({font:TP.has(i+1)?2:1,border:1,h:"center"});
-    S.set(0,y,(TP.has(i+1)?"◯":"")+(i+1),nf); S.set(1,y,SCHED[i],B); S.set(2,y,r.st,B);
-    MATS.map(x=>x[0]).forEach((m,j)=>S.set(3+j,y,r.mat===m||(m==="otherH"&&r.mat==="other")?"✓":"",B));
+    S.set(0,y,(TP.has(i+1)?"◯":"")+(i+1),nf); S.set(1,y,r.st,B);
+    MATS.map(x=>x[0]).forEach((m,j)=>S.set(2+j,y,r.mat===m||(m==="otherH"&&r.mat==="other")?"✓":"",B));
     MIX.forEach((k,j)=>S.set(X+j,y,k==="dar"&&drUsed(r)?drText(r):r[k],k==="dar"?st({border:1,h:"center",wrap:true}):B)); S.set(X+6,y,r.addC||r.add,B); S.set(X+7,y,r.addSi,B); S.set(X+8,y,r.addSc,B); tsc+=num(r.addSc)||0;
     ["ce","c","si"].forEach((k,j)=>S.set(X+9+j,y,r[k],cls(r,k)==="ng"?NG:st({border:1,h:"center",fmt:"d2"})));
     S.set(X+12,y,r.ten,B); S.set(X+13,y,r.temp,cls(r,"temp")==="ng"?NG:B); S.set(X+14,y,r.tap,B); S.set(X+15,y,r.dem,B);
@@ -1193,7 +1193,7 @@ function buildNippoSheet(){
 }
 function tableSheet(name,rows,widths){ const S=new Sheet(name); S.freeze=1; S.cols=widths; const H=st({font:1,fill:"head",border:1,h:"center",wrap:true});
   rows.forEach((row,r)=>row.forEach((v,c)=>S.set(c,r,v,r===0?H:st({border:1})))); S.autoFilter="A1:"+ref(rows[0].length-1,Math.max(rows.length-1,0)); S.heights[0]=32; return S; }
-function buildXlsx(){ return workbook([buildNippoSheet(), tableSheet("データ",dataRows(),[11,6,8,8,8,8,8,10,8,8,10,9,9,8,8,9,7,7,10,6,6,6,8,9,8,8,6,10,9,9,8,10,10]), tableSheet("異常変化点",eventRows(),[11,5,9,9,10,50,50]), tableSheet("停止・待ち",[["生産日","No","開始","終了","時間(分)","理由","メモ","遅れたチャージ"],...liveStops().map((x,i)=>[state.date,i+1,x.st||"",x.en||"",stopMin(x)??"",STOP_L[x.r]||"",x.memo||"",x.ch?"No."+x.ch:""])],[11,5,9,9,9,14,40,10])]); }
+function buildXlsx(){ return workbook([buildNippoSheet(), tableSheet("データ",dataRows(),[11,6,8,8,8,8,10,8,8,10,9,9,8,8,9,7,7,10,6,6,6,8,9,8,8,6,10,9,9,8,10,10]), tableSheet("異常変化点",eventRows(),[11,5,9,9,10,50,50]), tableSheet("停止・待ち",[["生産日","No","開始","終了","時間(分)","理由","メモ","遅れたチャージ"],...liveStops().map((x,i)=>[state.date,i+1,x.st||"",x.en||"",stopMin(x)??"",STOP_L[x.r]||"",x.memo||"",x.ch?"No."+x.ch:""])],[11,5,9,9,9,14,40,10])]); }
 $("btnCsv").onclick=async()=>{
   if(!state.rows.some(rowHas)&&!liveEvents().length){ toast("入力データがありません"); return; }
   await Sync.flush();
