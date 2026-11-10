@@ -742,9 +742,11 @@ function renderAll(){ renderHeader(); renderChips(); renderEntry(); renderTable(
 function refreshLight(){ renderChips(); renderTable(); updateMarks(); }
 function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2600); }
 // 出湯時刻が今より後か（日報の日付は朝8時で切りかわる）
-function tapFuture(v){ const t=todayStr(); if(state.date>t) return true; if(state.date<t) return false;
-  const m=/^(\d{1,2}):(\d{2})/.exec(v||""); if(!m) return false; const ab=x=>x<8*60?x+1440:x; const d=new Date();
-  return ab(+m[1]*60+(+m[2]))>ab(d.getHours()*60+d.getMinutes())+1; }
+// v30：日報の日付＋入れた時刻が、今（＋1分）より後のときだけ止める
+//   （前は朝8時前を前の日として数えていたので、8時前に当日の日報へ出湯時刻を入れると、すべて「今より後」になっていた）
+function tapFuture(v){ const m=/^(\d{1,2}):(\d{2})/.exec(v||""); if(!m||!state||!/^\d{4}-\d{2}-\d{2}$/.test(state.date)) return false;
+  const [y,mo,d]=state.date.split("-").map(Number), at=new Date(y,mo-1,d,+m[1],+m[2]).getTime();
+  return at>Date.now()+60*1000; }
 function askConfirm(msg){ return new Promise(res=>{ const d=$("dlgConfirm"); $("cfMsg").textContent=msg;
   const done=v=>{ $("cfYes").onclick=$("cfNo").onclick=null; d.onclose=null; if(d.open) d.close(); res(v); };
   $("cfYes").onclick=()=>done(true); $("cfNo").onclick=()=>done(false); d.onclose=()=>done(false); d.showModal(); }); }
