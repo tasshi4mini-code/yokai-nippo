@@ -622,7 +622,9 @@ function save(){ state.updated=new Date().toISOString(); LS.set(key(),state); }
 function normalize(s){ const b=blankState(s.date); s=Object.assign(b,s); s.equip=EQUIP;
   s.rows=Array.from({length:N},(_,i)=>{ const r=Object.assign(blankRow(),(s.rows||[])[i]||{}); r.calc=r.calc||{}; ["mat","plan"].forEach(k=>{ if(OLDMAT[r[k]]) r[k]=OLDMAT[r[k]]; }); return r; });
   s.events=(s.events||[]).map(e=>Object.assign({id:uid(),u:1,start:"",end:"",person:"",content:"",action:""},e)); return s; }
-function load(date){ state=normalize(LS.get(APP+":day:"+date,null)||blankState(date)); }
+function load(date){ const old=state&&state.date; state=normalize(LS.get(APP+":day:"+date,null)||blankState(date));
+  if(old&&date>old&&typeof Sync!=="undefined") setTimeout(()=>Sync.flush().then(()=>Sync.cleanTail(old)),500); }   // v32：先の日に移ったら、前の日の最後の自動の開始時刻を消す
+function dayBefore(d){ const [y,m,dd]=d.split("-").map(Number); const x=new Date(y,m-1,dd-1); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
 function liveEvents(){ return state.events.filter(e=>!e.del); }
 
 // ---- 判定 ----
@@ -1313,7 +1315,23 @@ const Sync=(function(){
   window.addEventListener("online",()=>{ flush().then(pull); }); window.addEventListener("offline",status);
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") flush().then(pull); });
   setInterval(()=>{ if(document.visibilityState==="visible") flush().then(pull); },45000);
-  return {queue,queueSpec,flush,pull,status,test,setCfg,getCfg:()=>cfg,list,pendingCount:()=>q.length};
+  // v32：次の日に移ったら、前の日の最後に自動で入った開始時刻（出湯＋5分。溶かしていないチャージ）を消す
+  async function cleanTail(date){ if(!on()||VIEW||!/^\d{4}-\d{2}-\d{2}$/.test(date||"")||navigator.onLine===false) return;
+    try{ const j=await call({action:"load",token:cfg.token,date,equip:EQUIP}); const rows=[]; (j.items||[]).forEach(it=>{ if(it.type==="row") rows[+it.ref]=Object.assign({},it.raw||{},{u:it.u}); });
+      let lastTap=-1; rows.forEach((r,i)=>{ if(r&&r.tap) lastTap=i; }); if(lastTap<0) return;
+      const [y,mo,d]=date.split("-").map(Number), ops=[], now=Date.now();
+      for(let i=lastTap+1;i<rows.length;i++){ const r=rows[i]; if(!r||!r.st||!r.stAuto||r.tap) continue;
+        if(rowHas(Object.assign(blankRow(),r,{st:"",stAuto:false}))) continue;            // 原材料などが入っているチャージは消さない
+        const m=/^(\d{1,2}):(\d{2})/.exec(r.st); if(!m) continue; const h=+m[1], t=new Date(y,mo-1,d+(h<8?1:0),h,+m[2]).getTime(); if(now-t<60*60000) continue;   // 1時間たっていないものは残す
+        if(pending(`row|${date}|${EQUIP}|${i}`)) continue;
+        const raw=Object.assign({},r,{st:"",stAuto:false}); delete raw.u; ops.push({type:"row",date,equip:EQUIP,ref:String(i),u:now,raw}); }
+      if(!ops.length) return;
+      await call(null,{token:cfg.token,ops});
+      const k=APP+":day:"+date, ld=LS.get(k,null); if(ld&&Array.isArray(ld.rows)){ ops.forEach(o=>{ const r=ld.rows[+o.ref]; if(r){ r.st=""; r.stAuto=false; r.u=now; } }); LS.set(k,ld); }
+      if(state&&state.date===date){ ops.forEach(o=>{ const r=state.rows[+o.ref]; if(r){ r.st=""; r.stAuto=false; r.u=now; } }); save(); renderAll(); }
+      toast(`前の日（${+date.slice(5,7)}/${+date.slice(8)}）の No.${ops.map(o=>+o.ref+1).join("・")} に自動で入っていた開始時刻を消しました`); }
+    catch(e){ console.warn("cleanTail",e); } }
+  return {queue,queueSpec,flush,pull,status,test,setCfg,getCfg:()=>cfg,list,cleanTail,pendingCount:()=>q.length};
 })();
 $("syncStat").onclick=async()=>{ await Sync.flush(); await Sync.pull(); toast(Sync.pendingCount()?"未送信のデータがあります":"最新の状態です"); };
 $("btnCfgSave").onclick=()=>{ Sync.setCfg($("cfgUrl").value.trim(),$("cfgToken").value.trim()); $("cfgInfo").textContent="保存しました"; Sync.pull(); };
@@ -1343,7 +1361,7 @@ $("btnCfgTest").onclick=async()=>{ $("cfgInfo").textContent="確認中…"; $("c
 load(todayStr()); sel=startSel();
 renderAll();
 if(VIEW){ $("viewBadge").hidden=false; document.title="溶解日報（閲覧用）"; document.querySelectorAll("#entryCard input,.card input").forEach(el=>el.readOnly=true); }
-Sync.status(); Sync.flush().then(()=>Sync.pull());
+Sync.status(); Sync.flush().then(()=>Sync.pull()).then(()=>{ if(state.date===todayStr()) Sync.cleanTail(dayBefore(state.date)); });
 const EXP={load:d=>load(d), empty:()=>!state.rows.some(rowHas)&&!liveEvents().length, name:()=>"溶解日報_"+state.date.replace(/-/g,"")+".xlsx"};
 // ---- 自動Excel出力（URL末尾に ?export=開始日..終了日 を付けて開くと、その期間の日報Excelを作って画面に埋め込む）----
 (async function(){
