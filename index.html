@@ -303,6 +303,12 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
 .calc-drsum{margin:-4px 0 10px;padding:8px 12px;border:2px solid #7a3b00;border-radius:10px;background:#fff4e6;color:#7a3b00}
 .calc-drsum b{font-size:30px}
 .stp.dsg{grid-template-columns:1fr 1fr auto}.stp.dsg .rsn{grid-column:1/-1;order:3}.stp.dsg .mins{align-self:center}.stp.dsg .memo{order:4}
+.ev.mix{border:2px solid #e65100;background:#fff8f0}.ev.need{box-shadow:0 0 0 3px rgba(213,0,0,.35)}
+.evtag{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:bold;font-size:14px}
+.evtag .tg{color:#fff;border-radius:6px;padding:2px 10px;background:#e65100}.evtag .needm{color:#d50000}.evtag button{min-height:34px;font-size:13px}
+#dlgMixWhy .mwchg{font-size:19px;font-weight:bold;margin:8px 0;color:#1d2330}
+#dlgMixWhy .mwrs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}#dlgMixWhy .mwrs button{min-height:42px}
+#dlgMixWhy textarea{width:100%;min-height:80px;font-size:17px;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -558,6 +564,15 @@ html,body,button,input,select,textarea,label,.chip{touch-action:manipulation}
   </div>
   <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap"><button id="dsLater">あとで入れる</button><button class="pri" id="dsSave">記録する</button></div>
 </div></dialog>
+<dialog id="dlgMixWhy"><div class="dlg" style="max-width:520px">
+  <h3 style="margin:0;color:#b00020" id="mwTitle"></h3>
+  <div class="mwchg" id="mwChg"></div>
+  <div class="small">理由を記入してください / Tulis alasannya</div>
+  <div class="mwrs" id="mwRs"></div>
+  <textarea id="mwTxt" placeholder="理由（例：銑鉄の在庫切れのため、戻り材を増やした）"></textarea>
+  <div class="small" style="margin-top:6px">「異常/変化点」の欄に自動で記録されます。あとで直すこともできます。</div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button id="mwLater">あとで入れる</button><button class="pri" id="mwOk">保存</button></div>
+</div></dialog>
 <dialog id="dlgConfirm"><div class="dlg">
   <p id="cfMsg" style="font-size:17px;margin:4px 0 18px;white-space:pre-line"></p>
   <div style="display:flex;justify-content:flex-end;gap:8px"><button id="cfNo">キャンセル</button><button class="pri" id="cfYes">OK</button></div>
@@ -727,7 +742,8 @@ function drSummary(){ const d=DR(), m={}; const add=(n,kg,c)=>{ m[n]=m[n]||{name
 function renderEvents(){
   if(!liveEvents().length){ $("events").innerHTML='<div class="small" style="margin-bottom:10px">記録なし</div>'; return; }
   $("events").innerHTML=state.events.map((e,i)=>e.del?"":`
-   <div class="ev" data-e="${i}">
+   <div class="ev ${mixKind(e)?"mix":""} ${mixKind(e)&&!mixWhyOf(e)?"need":""}" data-e="${i}">
+     ${mixKind(e)?`<div class="evtag"><span class="tg">${mixKind(e)==="sen0"?"銑鉄 0kg":"原材料の規格外"}</span>${mixWhyOf(e)?"":`<span class="needm">⚠ 理由が入っていません</span><button data-mwhy="${i}">理由を入れる</button>`}</div>`:""}
      <label class="f">発生時刻 <span class="id">Waktu</span><input type="time" data-ek="start" value="${esc(e.start)}" ${VIEW?"readonly":""}></label>
      <label class="f">〜<input type="time" data-ek="end" value="${esc(e.end)}" ${VIEW?"readonly":""}></label>
      <label class="f wide">異常/変化点内容 <span class="id">Detail kelainan</span><textarea lang="ja" data-ek="content" ${VIEW?"readonly":""}>${esc(e.content)}</textarea></label>
@@ -783,7 +799,7 @@ document.querySelectorAll("#entryCard input[data-k]").forEach(inp=>{
     if(k==="tap"&&inp.value&&tapFuture(inp.value)){ inp.value=r.tap||""; toast("⚠ 出湯時刻は、出湯してから入れてください（今より後の時刻は入れられません）"); return; }
     r[k]=inp.value.trim(); if(k==="st") r.stAuto=false;
     if(k==="temp"&&r.temp&&!r.tap){ r.tap=nowHM(); document.querySelector('#entryCard input[data-k="tap"]').value=r.tap; }
-    touchRow(sel); refreshLight(); });
+    touchRow(sel); refreshLight(); if(k==="tap"&&r.tap){ const i=sel; clearTimeout(mixT); mixT=setTimeout(()=>mixCheck(i,"sen",false),1500); } });
   if(inp.dataset.k==="worker") inp.addEventListener("change",()=>{ const v=inp.value.trim(); rememberWorker(v); workerAdding=false; renderWorkerSel(); });
 });
 document.querySelectorAll("[data-now]").forEach(b=>b.addEventListener("click",e=>{ e.preventDefault(); if(VIEW) return; const k=b.dataset.now; state.rows[sel][k]=nowHM(); if(k==="st") state.rows[sel].stAuto=false; document.querySelector(`#entryCard input[data-k="${k}"]`).value=state.rows[sel][k]; touchRow(sel); refreshLight(); }));
@@ -868,9 +884,32 @@ $("stops").addEventListener("click",async e=>{ if(VIEW) return; const box=e.targ
   const b=e.target.closest("[data-sr]"); if(b){ e.preventDefault(); x.r=x.r===b.dataset.sr?"":b.dataset.sr; touchStops(); renderStops(); return; }
   const n=e.target.closest("[data-snow]"); if(n){ e.preventDefault(); x[n.dataset.snow]=nowHM(); delete x.sec; if(x.en) delete x.t0; touchStops(); renderStops(); return; }
   const d=e.target.closest("[data-sdel]"); if(d&&await askConfirm("この停止・待ちの記録を削除しますか?")){ x.del=true; touchStops(); renderStops(); } });
+// ---- v34：原材料が規格外・銑鉄 0kg のときは、理由を記入してもらう（異常/変化点に自動で記録）----
+let mixT=null, mwEv=null;
+const MIXW_R=["銑鉄の在庫切れ","戻り材が多い","ダライ粉が少ない","上司の指示","テスト・試し","計量まちがい（あとで直す）"];
+function mixKind(e){ const c=String(e.content||""); return /^銑鉄 0kg/.test(c)?"sen0":/^原材料の規格外/.test(c)?"out":""; }
+function mixWhyOf(e){ const m=/理由：(.*)$/m.exec(String(e.content||"")); return m&&m[1].trim()&&m[1].trim()!=="（未入力）"?m[1].trim():""; }
+function mixProblem(r,k){ const v=num(r[k]); if(k==="sen"&&(v==null||v===0)) return {kind:"sen0",txt:`銑鉄 0kg（No.%N）`};
+  if(MIXSPEC[k]&&v!=null&&(k==="kou"||k==="mod"||k==="sen")){ const a=MIXSPEC[k]; if(v<a[0]||v>a[1]) return {kind:"out",txt:`原材料の規格外（No.%N）：${MIX_NAME[k]} ${fmtNum(v)}kg（規格 ${a[2]}kg）`}; }
+  if((k==="drM"||k==="drKg")&&(!r.drType||num(r.drKg)!=null)){ const t=(num(r.drM)||0)+(r.drType?(num(r.drKg)||0):0), a=MIXSPEC.dar; if(num(r.drM)!=null&&(t<a[0]||t>a[1])) return {kind:"out",txt:`原材料の規格外（No.%N）：ダライ粉の合計 ${fmtNum(t)}kg（規格 ${a[2]}kg）`,key:"dar"}; }
+  return null; }
+function mixCheck(i,k,fromCalc){ if(VIEW) return; const r=state.rows[i]; if(!r) return; const pb=mixProblem(r,k), key="mix|"+i+"|"+((pb&&pb.key)||(k==="drKg"?"dar":k==="drM"?"dar":k));
+  let ev=state.events.find(x=>x.auto===key&&!x.del);
+  if(!pb){ if(ev&&!mixWhyOf(ev)){ ev.del=true; ev.u=Date.now(); save(); Sync.queue("event",ev.id); renderEvents(); } return; }   // 規格内に直したら（理由が空なら）記録を消す
+  if(k==="sen"&&pb.kind==="sen0"&&!fromCalc&&!r.tap) return;                     // 銑鉄が空欄のときは、出湯時刻を入れたときに聞く
+  const head=pb.txt.replace("%N",i+1);
+  if(!ev){ ev={id:uid(),u:Date.now(),start:nowHM(),end:"",person:r.worker||"",content:"",action:"",auto:key}; state.events.push(ev); }
+  const why=mixWhyOf(ev); if(ev.content.split("\n")[0]===head&&why) return;
+  ev.content=head+"\n理由："+(why||"（未入力）"); ev.u=Date.now(); save(); Sync.queue("event",ev.id); renderEvents(); openMixWhy(ev); }
+function openMixWhy(ev){ mwEv=ev; const sen0=mixKind(ev)==="sen0"; $("mwTitle").textContent=sen0?"⚠ 銑鉄が 0kg です":"⚠ 原材料が規格外です"; $("mwChg").textContent=String(ev.content||"").split("\n")[0];
+  $("mwTxt").value=mixWhyOf(ev); $("mwRs").innerHTML=MIXW_R.map(t=>`<button data-r="${t}">${t}</button>`).join(""); if(!$("dlgMixWhy").open) $("dlgMixWhy").showModal(); setTimeout(()=>$("mwTxt").focus(),50); }
+$("mwRs").addEventListener("click",e=>{ const b=e.target.closest("[data-r]"); if(!b) return; e.preventDefault(); const t=$("mwTxt"); t.value=t.value?(t.value.includes(b.dataset.r)?t.value:t.value+"・"+b.dataset.r):b.dataset.r; t.focus(); });
+$("mwOk").onclick=()=>{ const ev=mwEv, v=$("mwTxt").value.trim(); if(!ev) return; if(!v){ toast("理由を記入してください（あとで入れるときは「あとで入れる」）"); return; }
+  ev.content=String(ev.content||"").split("\n")[0]+"\n理由："+v; ev.u=Date.now(); save(); Sync.queue("event",ev.id); renderEvents(); $("dlgMixWhy").close(); toast("理由を記録しました"); };
+$("mwLater").onclick=()=>{ $("dlgMixWhy").close(); toast("⚠ 理由は、下の「異常/変化点」の欄の「理由を入れる」から記入してください"); };
 $("btnAddEv").onclick=()=>{ const ev={id:uid(),u:Date.now(),start:nowHM(),end:"",person:state.rows[sel].worker||"",content:"",action:""}; state.events.push(ev); save(); Sync.queue("event",ev.id); renderEvents(); };
 $("events").addEventListener("input",e=>{ if(VIEW) return; const box=e.target.closest(".ev"), k=e.target.dataset.ek; if(box&&k){ const ev=state.events[+box.dataset.e]; ev[k]=e.target.value; ev.u=Date.now(); save(); Sync.queue("event",ev.id); } });
-$("events").addEventListener("click",async e=>{ const d=e.target.dataset.del; if(d!=null && await askConfirm("この記録を削除しますか?")){ const ev=state.events[+d]; ev.del=true; ev.u=Date.now(); save(); Sync.queue("event",ev.id); renderEvents(); } });
+$("events").addEventListener("click",async e=>{ const w=e.target.closest("[data-mwhy]"); if(w&&!VIEW){ openMixWhy(state.events[+w.dataset.mwhy]); return; } const d=e.target.dataset.del; if(d!=null && await askConfirm("この記録を削除しますか?")){ const ev=state.events[+d]; ev.del=true; ev.u=Date.now(); save(); Sync.queue("event",ev.id); renderEvents(); } });
 $("date").addEventListener("change",()=>{ const d=$("date").value; if(!d) return; load(d); autoSel=true; sel=startSel(); renderAll(); Sync.pull(); });
 
 // ---- 材質の予定（予約） ----
@@ -961,13 +1000,15 @@ document.querySelector("#dlgCalc .keys").addEventListener("click",async e=>{ con
   else if(k==="cancel"){ if(calcDirty()&&!calc.warned){ calc.warned=true; setMust(true); return; } setMust(false); $("dlgCalc").close(); return; }
   else if(k==="ok"){ const r=state.rows[sel]; const overMx=calc.k==="drKg"?drMax(r.drType):null, overT=calcTotal();
     { const v0=num(calc.cur), L0=v0!=null?calc.list.concat([v0]):calc.list, t0=L0.reduce((a,b)=>a+b,0), er=mixErr(r,calc.k,t0,L0.length>0);
-      if(er){ if(v0!=null){ calc.list.push(v0); calc.cur=""; } renderCalc(); setErr(er); return; } }
+      const sen0=calc.k==="sen"&&L0.length>0&&t0===0, er2=er||(sen0?`⚠ 銑鉄が 0kg です<br><span style="font-size:14px">入れ忘れ・入力まちがいでないか確認してください / Sentetsu 0 kg</span>`:"");
+      if(er2&&calc.ack!==calc.k+"|"+t0){ calc.ack=calc.k+"|"+t0; if(v0!=null){ calc.list.push(v0); calc.cur=""; } renderCalc(); setErr(er2+`<br><span style="font-size:14px;font-weight:bold">まちがいでなければ、もう一度「確定」を押して理由を記入してください / Tekan lagi lalu tulis alasan</span>`); return; }
+      calc.mixWhy=er2?calc.k:""; }
     const v=num(calc.cur); if(v!=null){ if(!(await drPush(v))){ renderCalc(); return; } } const tot=calc.list.reduce((a,b)=>a+b,0);
     r[calc.k]=calc.list.length?fmtNum(tot):""; r.calc=r.calc||{}; r.calc[calc.k]=calc.list.length>1?calc.list.map(fmtNum).join("+"):"";
     if(calc.k==="drKg"||calc.k==="drM") drSync(r);
     if(overMx!=null&&overT>overMx) setTimeout(()=>alertOver(r.drType,overMx,overT),50);
     else { const dn=darNote(r,calc.k,tot); if(dn) toast("⚠ "+dn.replace(/※.*$/,"")+"　あとで確認してください"); }
-    $("dlgCalc").close(); touchRow(sel); renderEntry(); refreshLight(); return; }
+    $("dlgCalc").close(); touchRow(sel); renderEntry(); refreshLight(); calc.ack=""; { const kk=calc.k, i=sel; setTimeout(()=>mixCheck(i,kk,true),80); } return; }
   renderCalc(); });
 // ---- 数字キー (製造条件) ----
 const PADL={kwh:"電力量 只今の値 (kWh)",ce:"CE",c:"C",si:"Si",ten:"引張強度 Kekuatan tarik",temp:"出湯温度 (℃) Suhu",dem:"デマンド回数 Jumlah demand"};
